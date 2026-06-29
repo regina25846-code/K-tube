@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>K-Tube 다운로드</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #0d0d0d; color: #e0e0e0; font-family: 'Segoe UI', sans-serif; min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 48px 20px; }
+  .logo { font-size: 36px; font-weight: 800; color: #fff; letter-spacing: -1px; margin-bottom: 8px; }
+  .logo span { color: #ff4444; }
+  .subtitle { font-size: 14px; color: #888; margin-bottom: 48px; }
+  .card { background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 16px; padding: 28px 32px; width: 100%; max-width: 560px; margin-bottom: 20px; }
+  .card-title { font-size: 16px; font-weight: 700; color: #fff; margin-bottom: 6px; display: flex; align-items: center; gap: 8px; }
+  .card-desc { font-size: 13px; color: #888; margin-bottom: 20px; line-height: 1.6; }
+  .badge { font-size: 11px; background: #1e3a1e; color: #4caf50; border: 1px solid #2e5a2e; border-radius: 4px; padding: 2px 7px; font-weight: 600; }
+  .badge-gray { background: #2a2a2a; color: #999; border-color: #3a3a3a; }
+  .btn { display: block; width: 100%; padding: 14px 20px; border-radius: 10px; text-decoration: none; font-size: 14px; font-weight: 700; text-align: center; transition: opacity 0.15s; }
+  .btn:hover { opacity: 0.85; }
+  .btn-red { background: #ff4444; color: #fff; }
+  .btn-gray { background: #2a2a2a; color: #ccc; border: 1px solid #3a3a3a; }
+  .divider { height: 1px; background: #2a2a2a; margin: 20px 0; }
+  .section { width: 100%; max-width: 560px; margin-bottom: 16px; }
+  .section-title { font-size: 13px; font-weight: 700; color: #aaa; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .api-step { background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 10px; padding: 16px 20px; margin-bottom: 10px; }
+  .api-step-num { font-size: 11px; color: #ff4444; font-weight: 700; margin-bottom: 4px; }
+  .api-step-title { font-size: 14px; font-weight: 600; color: #fff; margin-bottom: 4px; }
+  .api-step-desc { font-size: 13px; color: #888; line-height: 1.6; }
+  .api-step-desc a { color: #4a9eff; text-decoration: none; }
+  .api-step-desc a:hover { text-decoration: underline; }
+  code { background: #252525; border: 1px solid #333; border-radius: 4px; padding: 1px 6px; font-size: 12px; color: #e0e0e0; font-family: monospace; }
+  .privacy-box { background: #1a1a1a; border: 1px solid #2a3a1a; border-left: 3px solid #4caf50; border-radius: 10px; padding: 14px 18px; margin-bottom: 20px; }
+  .privacy-box p { font-size: 13px; color: #aaa; line-height: 1.6; }
+  .privacy-box strong { color: #4caf50; }
+  .footer { font-size: 12px; color: #444; margin-top: 32px; text-align: center; }
+</style>
+</head>
+<body>
+
+<div class="logo">K<span>-</span>Tube</div>
+<div class="subtitle">YouTube를 앱처럼 — 광고 없이, 내 방식대로</div>
+
+<!-- 설치형 -->
+<div class="card">
+  <div class="card-title">
+    설치형
+    <span class="badge">자동 업데이트 지원</span>
+  </div>
+  <div class="card-desc">
+    설치 후 바로 실행. 새 버전이 나오면 앱이 자동으로 감지하여 업데이트합니다.<br>
+    처음 설치하거나 자동 업데이트를 원한다면 이걸 받으세요.
+  </div>
+  <a class="btn btn-red" href="https://github.com/regina25846-code/K-tube/releases/latest/download/K-Tube.Setup.1.0.0.exe">
+    ⬇ 설치형 다운로드 (.exe)
+  </a>
+</div>
+
+<!-- 포터블 -->
+<div class="card">
+  <div class="card-title">
+    포터블
+    <span class="badge badge-gray">설치 불필요</span>
+  </div>
+  <div class="card-desc">
+    설치 없이 파일 실행만으로 동작합니다. USB나 특정 폴더에서 바로 사용 가능.<br>
+    단, 자동 업데이트는 지원되지 않습니다.
+  </div>
+  <a class="btn btn-gray" href="https://github.com/regina25846-code/K-tube/releases/latest/download/K-Tube-1.0.0-portable.exe">
+    ⬇ 포터블 다운로드 (.exe)
+  </a>
+</div>
+
+<div class="divider" style="width:100%;max-width:560px;margin:8px 0 28px"></div>
+
+<!-- API 안내 -->
+<div class="section">
+  <div class="section-title">시작 전에 — YouTube API 키 설정</div>
+
+  <div class="privacy-box">
+    <p>🔒 <strong>API 키는 내 컴퓨터에만 저장됩니다.</strong><br>
+    입력한 API 키는 이 앱 외부로 전송되거나 공유되지 않습니다. 로컬 파일에만 저장되며, 오직 YouTube 영상 검색·조회에만 사용됩니다.</p>
+  </div>
+
+  <div class="api-step">
+    <div class="api-step-num">STEP 1</div>
+    <div class="api-step-title">Google Cloud Console 접속</div>
+    <div class="api-step-desc">
+      <a href="https://console.cloud.google.com" target="_blank">console.cloud.google.com</a>에 접속 후 Google 계정으로 로그인합니다.
+    </div>
+  </div>
+
+  <div class="api-step">
+    <div class="api-step-num">STEP 2</div>
+    <div class="api-step-title">새 프로젝트 만들기</div>
+    <div class="api-step-desc">
+      상단 프로젝트 선택 → <strong>새 프로젝트</strong> 클릭.<br>
+      이름은 <code>K-Tube_1</code> 처럼 자유롭게 지정하세요.<br>
+      API 키는 여러 개 만들 수 있어 쿼터 소진 시 전환이 가능합니다.
+    </div>
+  </div>
+
+  <div class="api-step">
+    <div class="api-step-num">STEP 3</div>
+    <div class="api-step-title">YouTube Data API v3 활성화</div>
+    <div class="api-step-desc">
+      왼쪽 메뉴 → <strong>API 및 서비스 → 라이브러리</strong> → <code>YouTube Data API v3</code> 검색 → 사용 설정.
+    </div>
+  </div>
+
+  <div class="api-step">
+    <div class="api-step-num">STEP 4</div>
+    <div class="api-step-title">API 키 발급</div>
+    <div class="api-step-desc">
+      <strong>API 및 서비스 → 사용자 인증 정보 → 사용자 인증 정보 만들기 → API 키</strong> 클릭.<br>
+      생성된 키를 복사해두세요.
+    </div>
+  </div>
+
+  <div class="api-step">
+    <div class="api-step-num">STEP 5</div>
+    <div class="api-step-title">K-Tube에 키 입력</div>
+    <div class="api-step-desc">
+      앱 실행 후 우측 상단 <strong>설정</strong>에서 API 키를 붙여넣기하면 완료됩니다.<br>
+      하루 쿼터(무료 10,000회)가 소진되면 다른 프로젝트의 키로 추가해서 사용하세요.
+    </div>
+  </div>
+</div>
+
+<div class="footer">K-Tube v1.0.0 · Windows x64</div>
+
+</body>
+</html>
