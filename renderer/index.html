@@ -1,0 +1,1486 @@
+<!DOCTYPE html>
+<html lang="ko" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>K-Tube</title>
+<link rel="preconnect" href="https://cdn.jsdelivr.net">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+<style>
+/* ── Theme vars ── */
+:root {
+  --bg: #0d0d0d;
+  --bg2: #161616;
+  --bg3: #222;
+  --bg4: #2a2a2a;
+  --border: #333;
+  --text: #f0f0f0;
+  --text2: #bbb;
+  --text3: #888;
+  --red: #ff4444;
+  --gold: #FFD700;
+  --fire: #FF6B35;
+  --green: #2ECC71;
+  --blue: #4A9EFF;
+  --shadow: rgba(0,0,0,0.5);
+}
+[data-theme="light"] {
+  --bg: #f0f0f0;
+  --bg2: #ffffff;
+  --bg3: #e8e8e8;
+  --bg4: #dcdcdc;
+  --border: #cccccc;
+  --text: #111111;
+  --text2: #444444;
+  --text3: #777777;
+  --shadow: rgba(0,0,0,0.15);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; overflow: hidden; }
+body { background: var(--bg); color: var(--text); font-family: 'Pretendard','KoPubWorld Dotum',-apple-system,'Malgun Gothic','Segoe UI',sans-serif; display: flex; flex-direction: column; }
+
+/* ── Header ── */
+.header {
+  background: var(--bg2);
+  border-bottom: 1px solid var(--border);
+  padding: 0 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 52px;
+  flex-shrink: 0;
+  -webkit-app-region: drag;
+}
+.logo { font-size: 18px; font-weight: 800; color: var(--text); white-space: nowrap; letter-spacing: -0.5px; }
+.logo em { color: var(--red); font-style: normal; }
+.tabs { display: flex; gap: 2px; -webkit-app-region: no-drag; }
+.tab-btn {
+  background: none; border: none; border-bottom: 2px solid transparent;
+  padding: 16px 13px 14px; font-size: 15px; font-weight: 600; color: var(--text2);
+  cursor: pointer; font-family: inherit; transition: all 0.15s; white-space: nowrap;
+}
+.tab-btn.active { color: var(--text); border-bottom-color: var(--red); }
+.tab-btn:hover:not(.active) { color: var(--text); }
+.header-spacer { flex: 1; -webkit-app-region: no-drag; }
+.header-actions { display: flex; align-items: center; gap: 6px; -webkit-app-region: no-drag; }
+.icon-btn {
+  background: none; border: 1px solid var(--border); border-radius: 8px;
+  width: 32px; height: 32px; color: var(--text2); cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.15s;
+}
+.icon-btn:hover { color: var(--text); border-color: #888; }
+.settings-btn {
+  background: none; border: 1px solid var(--border); border-radius: 8px;
+  padding: 6px 12px; color: var(--text2); font-size: 14px; cursor: pointer;
+  font-family: inherit; transition: all 0.15s; display: flex; align-items: center; gap: 4px;
+}
+.settings-btn:hover { color: var(--text); border-color: #888; }
+.win-btns { display: flex; gap: 4px; margin-left: 4px; }
+.win-btn {
+  width: 28px; height: 28px; border-radius: 6px; border: none; background: none;
+  color: var(--text3); cursor: pointer; display: flex; align-items: center; justify-content: center;
+  font-size: 14px; transition: background 0.15s, color 0.15s;
+}
+.win-btn:hover { background: var(--bg3); color: var(--text); }
+.win-btn.close:hover { background: #e74c3c; color: #fff; }
+
+/* ── Search bar ── */
+.search-bar {
+  padding: 10px 16px; background: var(--bg2); border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 10px; flex-shrink: 0; position: relative;
+}
+.search-input-wrap { position: relative; flex: 1; max-width: 520px; }
+.search-input {
+  width: 100%; background: var(--bg3); border: 1px solid var(--border); border-radius: 8px;
+  padding: 8px 14px; color: var(--text); font-size: 16px; font-family: inherit; outline: none;
+  transition: border-color 0.2s;
+}
+.search-input:focus { border-color: var(--text3); }
+.history-dropdown {
+  display: none; position: absolute; top: calc(100% + 4px); left: 0; right: 0;
+  background: var(--bg2); border: 1px solid var(--border); border-radius: 10px;
+  box-shadow: 0 8px 24px var(--shadow); z-index: 100; overflow: hidden;
+  max-height: 320px; overflow-y: auto;
+}
+.history-item {
+  display: flex; align-items: center; padding: 9px 12px; cursor: pointer; gap: 8px;
+  font-size: 13px; color: var(--text); transition: background 0.1s;
+}
+.history-item:hover { background: var(--bg3); }
+.history-item-text { flex: 1; }
+.history-del {
+  width: 20px; height: 20px; border-radius: 50%; border: none; background: none;
+  color: var(--text3); font-size: 14px; cursor: pointer; display: flex;
+  align-items: center; justify-content: center; transition: all 0.1s; flex-shrink: 0;
+}
+.history-del:hover { background: var(--bg4); color: var(--text); }
+.search-btn {
+  background: var(--red); border: none; border-radius: 8px; padding: 8px 18px;
+  color: #fff; font-size: 15px; font-weight: 700; cursor: pointer; font-family: inherit;
+  transition: opacity 0.2s; white-space: nowrap;
+}
+.search-btn:hover { opacity: 0.85; }
+.search-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.filter-row { display: flex; align-items: center; gap: 10px; margin-left: 4px; }
+.filter-chip {
+  display: flex; align-items: center; gap: 5px; background: var(--bg3);
+  border: 1px solid var(--border); border-radius: 20px; padding: 5px 13px;
+  font-size: 14px; color: var(--text2); cursor: pointer; user-select: none; transition: all 0.15s;
+}
+.filter-chip input { display: none; }
+.filter-chip.checked { background: var(--red); border-color: var(--red); color: #fff; font-weight: 700; }
+
+/* ── Home bar ── */
+.home-bar {
+  padding: 8px 14px; background: var(--bg2); border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; flex-wrap: wrap; gap: 8px; flex-shrink: 0;
+}
+.topic-chips-row { display: flex; flex-wrap: wrap; gap: 6px; flex: 1; }
+.topic-chip {
+  display: inline-flex; align-items: center; background: var(--bg3); border: 1px solid var(--border);
+  border-radius: 20px; padding: 5px 13px; font-size: 14px; color: var(--text);
+  cursor: pointer; user-select: none; transition: all 0.15s; font-family: inherit;
+}
+.topic-chip:hover { border-color: var(--text3); }
+.topic-chip.active { background: rgba(255,68,68,0.15); border-color: rgba(255,68,68,0.6); color: var(--red); font-weight: 700; }
+.home-bar-actions { display: flex; align-items: center; gap: 8px; }
+
+/* ── Main layout ── */
+.main { display: flex; flex: 1; overflow: hidden; }
+
+/* ── Table panel ── */
+.table-panel { flex: 1; overflow-y: auto; overflow-x: hidden; }
+
+/* ── Search grid ── */
+.search-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; padding: 16px; }
+.search-card { cursor: pointer; border-radius: 8px; overflow: hidden; transition: transform 0.12s; }
+.search-card:hover { transform: scale(1.02); }
+.search-card-thumb-wrap { position: relative; width: 100%; aspect-ratio: 16/9; background: var(--bg3); border-radius: 8px; overflow: hidden; }
+.search-card-thumb { width: 100%; height: 100%; object-fit: cover; display: block; }
+.search-card-dur { position: absolute; bottom: 5px; right: 6px; background: rgba(0,0,0,0.8); color: #fff; font-size: 11px; font-weight: 600; padding: 1px 5px; border-radius: 3px; }
+.search-card-info { padding: 8px 2px 4px; }
+.search-card-title { font-size: 14px; font-weight: 500; color: var(--text); line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; margin-bottom: 4px; }
+.search-card-channel { font-size: 12px; color: var(--text2); }
+.search-card-meta { font-size: 11px; color: var(--text3); margin-top: 2px; }
+.table-panel::-webkit-scrollbar { width: 6px; }
+.table-panel::-webkit-scrollbar-track { background: transparent; }
+.table-panel::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+table { width: 100%; border-collapse: collapse; font-size: 15px; }
+thead th {
+  background: var(--bg2); border-bottom: 1px solid var(--border); padding: 8px 6px;
+  text-align: left; font-size: 13px; font-weight: 700; color: var(--text3);
+  text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap;
+  position: sticky; top: 0; z-index: 10; user-select: none;
+}
+thead th.r { text-align: right; }
+thead th.sortable { cursor: pointer; }
+thead th.sortable:hover { color: var(--text2); }
+thead th.sort-active { color: var(--text); }
+.sort-arrow { margin-left: 3px; font-size: 10px; }
+.sort-arrow.inactive { opacity: 0.25; }
+tbody tr { border-bottom: 1px solid var(--border); cursor: pointer; transition: background 0.1s; }
+tbody tr:hover { background: var(--bg2); }
+tbody tr.active { background: rgba(255,68,68,0.06); }
+td { padding: 8px 6px; vertical-align: middle; }
+td.r { text-align: right; }
+
+.video-cell { display: flex; align-items: center; gap: 12px; }
+.thumb-wrap { position: relative; flex-shrink: 0; width: 112px; height: 63px; }
+.thumb-sm { width: 112px; height: 63px; object-fit: cover; border-radius: 6px; background: var(--bg3); display: block; }
+.thumb-progress { position: absolute; bottom: 0; left: 0; height: 3px; background: var(--red); border-radius: 0 0 0 6px; pointer-events: none; }
+.video-info { min-width: 0; }
+.video-title {
+  font-size: 15px; font-weight: 500; color: var(--text); line-height: 1.4;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; margin-bottom: 3px;
+}
+.video-channel { font-size: 13px; color: var(--text2); }
+.video-age { font-size: 13px; color: var(--text3); margin-top: 1px; }
+
+.score-pill { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 13px; font-weight: 700; white-space: nowrap; }
+.score-pill.s3 { background: rgba(255,215,0,0.15); color: var(--gold); }
+.score-pill.s2 { background: rgba(255,107,53,0.15); color: var(--fire); }
+.score-pill.s1 { background: rgba(74,158,255,0.1); color: var(--blue); }
+.score-pill.s0 { background: transparent; color: var(--text3); }
+
+.metric-cell { white-space: nowrap; }
+.metric-val { font-size: 15px; font-weight: 600; }
+.metric-sub { font-size: 13px; color: var(--text2); margin-top: 1px; }
+.c-green { color: var(--green); }
+.c-gold  { color: var(--gold); }
+.c-fire  { color: var(--fire); }
+.c-blue  { color: var(--blue); }
+.c-gray  { color: var(--text3); }
+
+/* ── Side panel ── */
+.side-panel {
+  width: 0; flex-shrink: 0; background: var(--bg2); border-left: 1px solid var(--border);
+  transition: width 0.25s ease; overflow: hidden; display: flex; flex-direction: column;
+}
+.side-panel.open { width: 50%; min-width: 28%; }
+.side-close {
+  position: absolute; top: 8px; right: 8px; background: rgba(0,0,0,0.65); border: none;
+  border-radius: 50%; width: 28px; height: 28px; color: #fff; font-size: 14px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; z-index: 10;
+}
+.side-player-wrap { position: relative; flex: 1; min-height: 0; background: #000; }
+.side-player-wrap > div { width: 100%; height: 100%; }
+.side-panel iframe { width: 100%; height: 100%; display: block; border: none; background: #000; }
+.side-yt-link {
+  display: block; text-align: center; padding: 5px 8px; background: var(--bg3);
+  color: var(--text2); font-size: 11px; text-decoration: none; transition: color 0.15s; flex-shrink: 0;
+}
+.side-yt-link:hover { color: var(--red); }
+.side-info { padding: 10px 12px; flex-shrink: 0; }
+.side-title { font-size: 13px; font-weight: 700; color: var(--text); line-height: 1.4; margin-bottom: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.side-channel { font-size: 11px; color: var(--text); margin-bottom: 8px; cursor: pointer; }
+.side-channel:hover { text-decoration: underline; }
+.side-metrics { display: flex; gap: 6px; }
+.side-metric {
+  flex: 1; display: flex; flex-direction: column; align-items: center;
+  background: var(--bg3); border-radius: 8px; padding: 8px 6px; text-align: center;
+}
+.sm-label { font-size: 10px; color: var(--text2); margin-bottom: 3px; }
+.sm-value { font-size: 13px; font-weight: 700; }
+.sm-sub { font-size: 10px; color: var(--text); margin-top: 2px; }
+
+/* ── Divider ── */
+.divider {
+  width: 4px; background: var(--border); cursor: col-resize; flex-shrink: 0;
+  display: none; transition: background 0.15s; position: relative;
+}
+.divider::after { content: ''; position: absolute; inset: 0 -4px; }
+.divider:hover, .divider.dragging { background: var(--red); }
+
+/* ── Favorites panel ── */
+.fav-panel { display: none; flex: 1; overflow: hidden; }
+.fav-panel.active { display: flex; }
+.fav-sidebar {
+  width: 240px; flex-shrink: 0; background: var(--bg2); border-right: 1px solid var(--border);
+  display: flex; flex-direction: column; overflow: hidden;
+}
+.fav-content { flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 0; }
+.fav-content::-webkit-scrollbar { width: 6px; }
+.fav-content::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+.fav-item {
+  display: flex; align-items: center; gap: 12px; padding: 8px 6px; border-bottom: 1px solid var(--border);
+  cursor: pointer; transition: background 0.1s; border-radius: 4px;
+}
+.fav-item:hover { background: var(--bg2); }
+.fav-thumb { width: 96px; height: 54px; object-fit: cover; border-radius: 5px; flex-shrink: 0; background: var(--bg3); }
+.fav-info { flex: 1; min-width: 0; }
+.fav-title { font-size: 15px; font-weight: 500; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-bottom: 2px; }
+.fav-channel { font-size: 13px; color: var(--text2); }
+.fav-del { background: none; border: none; color: var(--text3); cursor: pointer; padding: 4px 6px; border-radius: 4px; font-size: 14px; flex-shrink: 0; transition: all 0.15s; }
+.fav-del:hover { background: rgba(255,68,68,0.12); color: var(--red); }
+.fav-empty { padding: 60px 20px; text-align: center; color: var(--text3); font-size: 16px; }
+
+/* ── Fav sidebar tabs (vertical) ── */
+.fav-sidebar-tab {
+  padding: 16px 18px; font-size: 15px; font-weight: 600;
+  cursor: pointer; color: var(--text3); border-left: 3px solid transparent;
+  transition: all 0.15s; display: flex; align-items: center; gap: 8px;
+  border-bottom: 1px solid var(--border);
+}
+.fav-sidebar-tab.active { color: var(--text); border-left-color: var(--red); background: rgba(255,68,68,0.06); }
+.fav-sidebar-tab:hover:not(.active) { color: var(--text2); background: var(--bg3); }
+
+/* ── Recent plays ── */
+.recent-date-group { padding: 8px 14px 4px; font-size: 11px; font-weight: 700; color: var(--text3); text-transform: uppercase; letter-spacing: 0.5px; }
+.recent-item {
+  display: flex; align-items: center; gap: 10px; padding: 8px 14px; cursor: pointer;
+  transition: background 0.1s; border-bottom: 1px solid var(--border);
+}
+.recent-item:hover { background: var(--bg3); }
+.recent-thumb { width: 72px; height: 40px; object-fit: cover; border-radius: 4px; flex-shrink: 0; background: var(--bg4); }
+.recent-info { flex: 1; min-width: 0; }
+.recent-title { font-size: 12px; font-weight: 500; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.recent-meta { font-size: 11px; color: var(--text3); margin-top: 1px; }
+
+/* ── Playlist modal ── */
+.playlist-item {
+  display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 8px;
+  background: var(--bg3); border: 1px solid var(--border); cursor: pointer; transition: all 0.15s;
+}
+.playlist-item:hover { border-color: var(--red); background: rgba(255,68,68,0.06); }
+.playlist-thumb { width: 80px; height: 45px; object-fit: cover; border-radius: 4px; flex-shrink: 0; background: var(--bg4); }
+.playlist-info { flex: 1; min-width: 0; }
+.playlist-title { font-size: 13px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.playlist-count { font-size: 11px; color: var(--text3); margin-top: 2px; }
+.fav-playlist-btn { background: none; border: none; cursor: pointer; font-size: 18px; color: var(--text3); padding: 4px 6px; flex-shrink: 0; line-height: 1; transition: color 0.15s; }
+.fav-playlist-btn:hover { color: var(--text); }
+.fav-playlist-btn.saved { color: #f5a623; }
+
+/* ── Queue badge ── */
+.queue-badge {
+  display: none; background: rgba(255,68,68,0.12); border: 1px solid rgba(255,68,68,0.3);
+  border-radius: 20px; padding: 4px 12px; font-size: 12px; color: var(--red); font-weight: 600;
+  align-items: center; gap: 8px; flex-shrink: 0;
+}
+.queue-badge.visible { display: flex; }
+.queue-stop { background: none; border: none; color: var(--red); cursor: pointer; font-size: 14px; padding: 0; }
+
+/* ── Shorts dropdown ── */
+.shorts-wrap { position: relative; }
+.shorts-dropdown {
+  display: none; position: absolute; top: calc(100% + 6px); left: 0;
+  background: var(--bg2); border: 1px solid var(--border); border-radius: 10px;
+  box-shadow: 0 8px 24px var(--shadow); z-index: 150; min-width: 150px; overflow: hidden;
+}
+.shorts-dropdown.open { display: block; }
+.shorts-opt {
+  padding: 11px 14px; font-size: 14px; color: var(--text); cursor: pointer; transition: background 0.1s;
+  display: flex; align-items: center; gap: 8px;
+}
+.shorts-opt:hover { background: var(--bg3); }
+.shorts-opt.active { color: var(--red); font-weight: 700; }
+
+/* ── Context menu ── */
+.ctx-menu {
+  display: none; position: fixed; background: var(--bg2); border: 1px solid var(--border);
+  border-radius: 10px; box-shadow: 0 8px 24px var(--shadow); z-index: 300; min-width: 160px; overflow: hidden;
+}
+.ctx-item {
+  padding: 10px 16px; font-size: 13px; color: var(--text); cursor: pointer; transition: background 0.1s;
+  display: flex; align-items: center; gap: 8px;
+}
+.ctx-item:hover { background: var(--bg3); }
+
+/* ── Settings modal ── */
+.modal-overlay {
+  display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.75);
+  z-index: 200; align-items: center; justify-content: center;
+}
+.modal-overlay.open { display: flex; }
+.modal { background: var(--bg2); border: 1px solid var(--border); border-radius: 14px; padding: 24px; width: 420px; max-width: 96vw; }
+.modal h3 { font-size: 16px; font-weight: 700; margin-bottom: 16px; color: var(--text); }
+.field-label { font-size: 12px; color: var(--text2); margin-bottom: 6px; }
+.field-input {
+  width: 100%; background: var(--bg3); border: 1px solid var(--border); border-radius: 8px;
+  padding: 10px 14px; color: var(--text); font-size: 13px; font-family: inherit; outline: none; margin-bottom: 8px;
+}
+.field-input:focus { border-color: var(--text3); }
+.field-hint { font-size: 11px; color: var(--text3); margin-bottom: 20px; }
+.modal-actions { display: flex; justify-content: flex-end; gap: 8px; }
+.btn { padding: 8px 20px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; border: none; font-family: inherit; transition: opacity 0.15s; }
+.btn-primary { background: var(--red); color: #fff; }
+.btn-secondary { background: var(--bg3); color: var(--text2); border: 1px solid var(--border); }
+.btn:hover { opacity: 0.85; }
+.interests-input {
+  width: 100%; background: var(--bg3); border: 1px solid var(--border); border-radius: 8px;
+  padding: 10px 14px; color: var(--text); font-size: 13px; font-family: inherit; outline: none;
+  resize: none; min-height: 70px; margin-bottom: 8px;
+}
+.interests-input:focus { border-color: var(--text3); }
+
+/* ── Empty / Loading ── */
+.center-msg { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 80px 20px; gap: 12px; color: var(--text3); }
+.spinner { width: 32px; height: 32px; border: 3px solid var(--border); border-top-color: var(--red); border-radius: 50%; animation: spin 0.8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.load-msg { font-size: 14px; color: var(--text2); font-weight: 500; }
+</style>
+</head>
+<body>
+
+<!-- Settings Modal -->
+<div class="modal-overlay" id="settingsModal">
+  <div class="modal">
+    <h3>⚙️ 설정</h3>
+    <div class="field-label">YouTube Data API 키 (여러 개는 줄바꿈으로 구분)</div>
+    <textarea class="interests-input" id="apiKeyInput" placeholder="AIza... (첫 번째 키)&#10;AIza... (두 번째 키)&#10;AIza... (세 번째 키)" style="min-height:90px;font-family:monospace;font-size:12px;"></textarea>
+    <div class="field-hint">할당량 초과 시 자동으로 다음 키로 전환됩니다. 로컬에만 저장됩니다.</div>
+    <div class="field-label">관심 주제 (홈탭용, 쉼표로 구분)</div>
+    <textarea class="interests-input" id="interestsInput" placeholder="예: 주식, 부동산, 창업, 경제, 투자"></textarea>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeSettings()">취소</button>
+      <button class="btn btn-primary" onclick="saveSettings()">저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- Folder Picker Modal -->
+<!-- Playlist Modal -->
+<div class="modal-overlay" id="playlistModal">
+  <div class="modal" style="width:500px;max-height:80vh;display:flex;flex-direction:column;overflow:hidden">
+    <h3>📋 채널 재생목록</h3>
+    <div id="playlistChannelName" style="font-size:13px;color:var(--text2);margin-bottom:12px"></div>
+    <div id="playlistList" style="flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:8px;padding-right:4px"></div>
+    <div class="modal-actions" style="margin-top:14px">
+      <button class="btn btn-secondary" onclick="closePlaylistModal()">닫기</button>
+    </div>
+  </div>
+</div>
+
+<!-- Context Menu -->
+<div class="ctx-menu" id="ctxMenu">
+  <div class="ctx-item" onclick="ctxShowChannelPlaylists()">📋 채널 재생목록 보기</div>
+</div>
+
+<!-- Header -->
+<div class="header">
+  <div class="logo">K<em>-Tube</em></div>
+  <div class="tabs">
+    <button class="tab-btn active" onclick="switchTab('home')" id="tabHome">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" style="vertical-align:-2px;margin-right:5px"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>홈
+    </button>
+    <button class="tab-btn" onclick="switchTab('search')" id="tabSearch">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" style="vertical-align:-2px;margin-right:5px"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>검색
+    </button>
+    <button class="tab-btn" onclick="switchTab('fav')" id="tabFav">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" style="vertical-align:-2px;margin-right:5px"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>즐겨찾기
+    </button>
+    <button class="tab-btn" onclick="switchTab('playlist')" id="tabPlaylist">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" style="vertical-align:-2px;margin-right:5px"><path d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z"/></svg>재생목록
+    </button>
+  </div>
+  <div class="header-spacer"></div>
+  <div class="header-actions">
+    <button class="icon-btn" id="themeToggleBtn" onclick="toggleTheme()" title="테마 변경">
+      <svg id="themeIconMoon" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+      <svg id="themeIconSun" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="display:none"><path d="M12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-13a1 1 0 0 0-1 1v1a1 1 0 0 0 2 0V5a1 1 0 0 0-1-1zm0 15a1 1 0 0 0-1 1v1a1 1 0 0 0 2 0v-1a1 1 0 0 0-1-1zm9-9h-1a1 1 0 0 0 0 2h1a1 1 0 0 0 0-2zM4 11H3a1 1 0 0 0 0 2h1a1 1 0 0 0 0-2zm13.66-5.66-.71-.71a1 1 0 0 0-1.41 1.41l.71.71a1 1 0 0 0 1.41-1.41zM6.34 17.66l-.71-.71a1 1 0 0 0-1.41 1.41l.71.71a1 1 0 0 0 1.41-1.41zm11.32 1.41.71-.71a1 1 0 0 0-1.41-1.41l-.71.71a1 1 0 0 0 1.41 1.41zM6.34 6.34l-.71-.71a1 1 0 0 0-1.41 1.41l.71.71a1 1 0 0 0 1.41-1.41z"/></svg>
+    </button>
+    <button class="settings-btn" onclick="openSettings()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.07-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.7-1.62-0.94L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41h-3.84c-0.24,0-0.43,0.17-0.47,0.41L9.25,5.35C8.66,5.59,8.12,5.92,7.63,6.29L5.24,5.33c-0.22-0.08-0.47,0-0.59,0.22L2.74,8.87C2.62,9.08,2.66,9.34,2.86,9.48l2.03,1.58C4.84,11.36,4.8,11.69,4.8,12s0.02,0.64,0.07,0.94l-2.03,1.58c-0.18,0.14-0.23,0.41-0.12,0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.7,1.62,0.94l0.36,2.54c0.05,0.24,0.24,0.41,0.48,0.41h3.84c0.24,0,0.44-0.17,0.47-0.41l0.36-2.54c0.59-0.24,1.13-0.56,1.62-0.94l2.39,0.96c0.22,0.08,0.47,0,0.59-0.22l1.92-3.32c0.12-0.22,0.07-0.47-0.12-0.61L19.14,12.94z M12,15.6c-1.98,0-3.6-1.62-3.6-3.6s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z"/></svg>
+      설정
+    </button>
+    <div class="win-btns">
+      <button class="win-btn" onclick="window.api?.minimize()" title="최소화">─</button>
+      <button class="win-btn close" onclick="window.api?.closeApp()" title="닫기">✕</button>
+    </div>
+  </div>
+</div>
+
+<!-- Home bar -->
+<div class="home-bar" id="homeBar">
+  <div class="topic-chips-row" id="topicChipsRow"></div>
+  <div class="home-bar-actions">
+    <div class="filter-chip" id="koFilterChip" onclick="toggleKoFilter(this)">🇰🇷 한국만</div>
+    <div class="shorts-wrap" id="homeShortsWrap">
+      <div class="filter-chip" id="homeShortsBtn" onclick="toggleShortsDropdown('home')">✂️ 쇼츠 <span id="homeShortsLabel">▾</span></div>
+      <div class="shorts-dropdown" id="homeShortsDropdown">
+        <div class="shorts-opt" id="homeShorts-off" onclick="setShortsFilter('off')">전체 보기</div>
+        <div class="shorts-opt" id="homeShorts-exclude" onclick="setShortsFilter('exclude')">✂️ 쇼츠 제외</div>
+        <div class="shorts-opt" id="homeShorts-only" onclick="setShortsFilter('only')">🩳 쇼츠만</div>
+      </div>
+    </div>
+    <button class="search-btn" onclick="loadHome()" style="padding:5px 14px;font-size:14px;">새로고침</button>
+  </div>
+</div>
+
+<!-- Search bar -->
+<div class="search-bar" id="searchBar" style="display:none">
+  <div class="search-input-wrap">
+    <input class="search-input" id="q" placeholder="검색어 입력..." autocomplete="off">
+    <div class="history-dropdown" id="historyDropdown"></div>
+  </div>
+  <button class="search-btn" id="searchBtn" onclick="doSearch()">검색</button>
+  <div class="filter-row">
+    <div class="shorts-wrap" id="searchShortsWrap">
+      <div class="filter-chip" id="searchShortsBtn" onclick="toggleShortsDropdown('search')">✂️ 쇼츠 <span id="searchShortsLabel">▾</span></div>
+      <div class="shorts-dropdown" id="searchShortsDropdown">
+        <div class="shorts-opt" id="searchShorts-off" onclick="setSearchShortsFilter('off')">전체 보기</div>
+        <div class="shorts-opt" id="searchShorts-exclude" onclick="setSearchShortsFilter('exclude')">✂️ 쇼츠 제외</div>
+        <div class="shorts-opt" id="searchShorts-only" onclick="setSearchShortsFilter('only')">🩳 쇼츠만</div>
+      </div>
+    </div>
+    <div class="filter-chip" id="searchSortBtn" onclick="cycleSearchSort()">📅 관련도순</div>
+  </div>
+</div>
+
+<!-- Main (home + search) -->
+<div class="main" id="main">
+  <div class="table-panel" id="tablePanel">
+    <div class="center-msg">
+      <div style="font-size:48px;opacity:.3"><svg width="48" height="48" viewBox="0 0 24 24" fill="currentColor"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg></div>
+      <div class="load-msg">설정에서 관심 주제를 입력하면 홈탭에서 바로 볼 수 있어요</div>
+    </div>
+  </div>
+  <div class="divider" id="divider"></div>
+  <div class="side-panel" id="sidePanel">
+    <div class="side-player-wrap">
+      <button class="side-close" onclick="closeSide()">✕</button>
+      <div id="ytPlayerContainer" style="width:100%;height:100%;background:#000;"></div>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;padding:4px 8px;background:var(--bg3);border-top:1px solid var(--border)">
+      <a class="side-yt-link" id="sideYtLink" href="#" target="_blank" style="padding:0;background:none;flex:1">↗ YouTube에서 열기</a>
+      <div class="queue-badge" id="queueBadge">
+        <span id="queuePos"></span>
+        <button class="queue-stop" onclick="stopQueue()" title="자동재생 중지">✕</button>
+      </div>
+    </div>
+    <div class="side-info" id="sideInfo"></div>
+  </div>
+</div>
+
+<!-- Favorites panel -->
+<div class="fav-panel" id="favPanel">
+  <div class="fav-sidebar">
+    <div class="fav-sidebar-tab active" id="favTabRecent" onclick="switchFavTab('recent')">🕐 최근 재생</div>
+    <div class="fav-sidebar-tab" id="favTabPlaylists" onclick="switchFavTab('playlists')">📋 재생목록</div>
+  </div>
+  <div class="fav-content" id="favContent">
+    <div class="fav-empty">탭을 선택해주세요.</div>
+  </div>
+</div>
+
+<script>
+// ── State ──
+let API_KEYS = [];
+let API_KEY = '';
+let currentKeyIdx = 0;
+let INTERESTS = '';
+let currentResults = [];
+let homeResults = [];
+let searchResults = [];
+let playlistResults = [];
+let currentTab = 'home';
+let activeRow = null;
+let sortKey = 'score';
+let sortDir = 'desc';
+let homeActiveTopic = null;
+let homeKoOnly = false;
+let currentTheme = 'dark';
+let searchHistory = [];
+let ctxVideoId = null;
+let recentPlays = [];
+let savedPlaylists = [];
+let playlistQueue = [];
+let playlistQueueIdx = -1;
+let searchSortMode = 'relevance';
+let playlistSortMode = 'default';
+let favSidebarTab = 'folders';
+
+// ── YouTube IFrame API ──
+let ytPlayer = null;
+let ytSaveInterval = null;
+let ytCurrentVideoId = null;
+let ytCurrentChannelId = null;
+let ytCurrentChannelName = '';
+
+(function() {
+  const tag = document.createElement('script');
+  tag.src = 'https://www.youtube.com/iframe_api';
+  document.head.appendChild(tag);
+})();
+
+function onYouTubeIframeAPIReady() {}
+
+function startYTPlayer(videoId, embeddable) {
+  if (!embeddable) { window.open(`https://youtu.be/${videoId}`, '_blank'); return; }
+  const saved = parseInt(localStorage.getItem('ktube_pos_' + videoId) || '0');
+  const container = document.getElementById('ytPlayerContainer');
+  container.innerHTML = '<div id="yt-inner"></div>';
+  clearInterval(ytSaveInterval);
+  if (ytPlayer) { try { ytPlayer.destroy(); } catch(e){} ytPlayer = null; }
+  ytCurrentVideoId = videoId;
+  window.api?.setVideoMode?.(true);
+  ytPlayer = new YT.Player('yt-inner', {
+    width: '100%', height: '100%', videoId,
+    playerVars: { autoplay: 1, start: Math.floor(saved), rel: 0 },
+    events: {
+      onReady() {
+        ytSaveInterval = setInterval(() => {
+          if (!ytPlayer || !ytCurrentVideoId) return;
+          try {
+            const t = ytPlayer.getCurrentTime();
+            const d = ytPlayer.getDuration();
+            if (t > 3) {
+              localStorage.setItem('ktube_pos_' + ytCurrentVideoId, Math.floor(t));
+              if (d > 0) localStorage.setItem('ktube_dur_' + ytCurrentVideoId, Math.floor(d));
+              const pct = Math.min(99, Math.round(t / d * 100));
+              const wrap = document.querySelector(`tr[data-id="${ytCurrentVideoId}"] .thumb-wrap`);
+              if (wrap) {
+                let bar = wrap.querySelector('.thumb-progress');
+                if (!bar) { bar = document.createElement('div'); bar.className = 'thumb-progress'; wrap.appendChild(bar); }
+                bar.style.width = pct + '%';
+              }
+            }
+          } catch(e) {}
+        }, 5000);
+      },
+      onStateChange(e) {
+        if (e.data === YT.PlayerState.ENDED) {
+          localStorage.removeItem('ktube_pos_' + ytCurrentVideoId);
+          localStorage.removeItem('ktube_dur_' + ytCurrentVideoId);
+          const wrap = document.querySelector(`tr[data-id="${ytCurrentVideoId}"] .thumb-wrap`);
+          if (wrap) { const bar = wrap.querySelector('.thumb-progress'); if (bar) bar.remove(); }
+          clearInterval(ytSaveInterval);
+          if (playlistQueue.length && playlistQueueIdx < playlistQueue.length - 1) {
+            playlistQueueIdx++;
+            playQueueItem(playlistQueueIdx);
+          } else if (playlistQueueIdx >= playlistQueue.length - 1 && playlistQueue.length) {
+            stopQueue();
+          }
+        }
+        if (e.data === YT.PlayerState.PLAYING) {
+          try {
+            const newId = ytPlayer.getVideoData()?.video_id;
+            if (newId && newId !== ytCurrentVideoId) {
+              ytCurrentVideoId = newId;
+              updateSidePanelForVideo(newId);
+            }
+          } catch(err) {}
+        }
+      }
+    }
+  });
+}
+
+async function updateSidePanelForVideo(videoId) {
+  try {
+    const link = document.getElementById('sideYtLink');
+    link.href = `https://youtu.be/${videoId}`;
+    const saved = parseInt(localStorage.getItem('ktube_pos_' + videoId) || '0');
+    link.textContent = saved > 10 ? `↗ YouTube에서 열기  (이어보기: ${fmtTime(saved)})` : '↗ YouTube에서 열기';
+    const data = ytPlayer.getVideoData();
+    const infoEl = document.getElementById('sideInfo');
+    const earlyMatch = [...currentResults, ...searchResults, ...playlistResults].find(x => x.videoId === videoId);
+    if (earlyMatch?.channelId) { ytCurrentChannelId = earlyMatch.channelId; ytCurrentChannelName = earlyMatch.channel || data.author || ''; }
+    infoEl.innerHTML = `<div class="side-title">${escHtml(data.title||'')}</div><div class="side-channel" onclick="openCurrentChannel()">${escHtml(data.author||'')}</div><div class="side-metrics" style="margin-top:6px"><div class="side-metric" style="flex:none;padding:6px 12px"><div class="sm-sub">통계 로딩 중...</div></div></div>`;
+    const vd = await apiFetch(`${BASE}/videos?part=statistics,snippet&id=${videoId}`);
+    const v = vd.items?.[0];
+    if (!v) return;
+    const views = parseInt(v.statistics.viewCount || 0);
+    const pub = v.snippet.publishedAt;
+    const hoursAgo = Math.max(0.5, (Date.now() - new Date(pub)) / 3600000);
+    const vph = views / hoursAgo;
+    ytCurrentChannelId = v.snippet.channelId;
+    ytCurrentChannelName = v.snippet.channelTitle;
+    infoEl.innerHTML = `
+      <div class="side-title">${escHtml(v.snippet.title)}</div>
+      <div class="side-channel" onclick="openCurrentChannel()">${escHtml(v.snippet.channelTitle)} · ${fmtAge(pub)}</div>
+      <div class="side-metrics">
+        <div class="side-metric"><div class="sm-label">⚡ 시간당</div><div class="sm-value c-blue">${fmtVph(vph)}</div><div class="sm-sub">총 ${fmtNum(views)}</div></div>
+        <div class="side-metric"><div class="sm-label">👁 총 조회수</div><div class="sm-value">${fmtNum(views)}</div><div class="sm-sub">${fmtAge(pub)}</div></div>
+      </div>`;
+  } catch(e) {}
+}
+
+function stopYTPlayer() {
+  clearInterval(ytSaveInterval);
+  if (ytPlayer) {
+    try { const t = ytPlayer.getCurrentTime(); if (ytCurrentVideoId && t > 3) localStorage.setItem('ktube_pos_' + ytCurrentVideoId, Math.floor(t)); ytPlayer.stopVideo(); } catch(e) {}
+  }
+  ytCurrentVideoId = null;
+  ytCurrentChannelId = null;
+  ytCurrentChannelName = '';
+  window.api?.setVideoMode?.(false);
+  document.getElementById('ytPlayerContainer').innerHTML = '';
+}
+
+// ── Config helpers ──
+async function getConfig() {
+  if (window.api) return await window.api.getConfig();
+  try { return JSON.parse(localStorage.getItem('ktube_cfg') || '{}'); } catch { return {}; }
+}
+async function setConfig(updates) {
+  const cfg = await getConfig();
+  const next = { ...cfg, ...updates };
+  if (window.api) await window.api.saveConfig(next);
+  else localStorage.setItem('ktube_cfg', JSON.stringify(next));
+  return next;
+}
+
+// ── Init ──
+async function init() {
+  const cfg = await getConfig();
+  API_KEYS = (cfg.apiKeys || (cfg.apiKey ? [cfg.apiKey] : [])).filter(Boolean);
+  currentKeyIdx = 0;
+  API_KEY = API_KEYS[0] || '';
+  INTERESTS = cfg.interests || '';
+  currentTheme = cfg.theme || 'dark';
+  homeKoOnly = cfg.koFilter || false;
+  homeActiveTopic = cfg.homeActiveTopic || null;
+  searchHistory = cfg.searchHistory || [];
+  recentPlays = cfg.recentPlays || [];
+  savedPlaylists = cfg.savedPlaylists || [];
+  if (cfg.homeShortsMode) setShortsFilterSilent(cfg.homeShortsMode);
+  if (cfg.searchShortsMode) setSearchShortsFilterSilent(cfg.searchShortsMode);
+  applyTheme(currentTheme);
+  if (homeKoOnly) document.getElementById('koFilterChip').classList.add('checked');
+  renderTopicChips();
+  const lastTab = (cfg.lastTab === 'playlist' ? 'home' : cfg.lastTab) || 'home';
+  switchTab(lastTab, true);
+  if (!API_KEYS.length) setTimeout(openSettings, 300);
+}
+init();
+
+document.getElementById('q').addEventListener('keydown', e => { if (e.key === 'Enter') { hideHistory(); doSearch(); } });
+document.getElementById('q').addEventListener('focus', () => { renderHistoryDropdown(); document.getElementById('historyDropdown').style.display = 'block'; });
+document.getElementById('q').addEventListener('blur', () => { setTimeout(() => document.getElementById('historyDropdown').style.display = 'none', 150); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeSide(); closeSettings(); closeFolderModal(); closePlaylistModal(); hideCtxMenu(); } });
+window.api?.onPlayVideo?.((videoId) => {
+  ytCurrentVideoId = videoId;
+  document.getElementById('sidePanel').classList.add('open');
+  document.getElementById('divider').style.display = 'block';
+  startYTPlayer(videoId, true);
+  updateSidePanelForVideo(videoId);
+});
+document.addEventListener('mousedown', (e) => {
+  if (!document.getElementById('ctxMenu').contains(e.target)) hideCtxMenu();
+  if (!document.getElementById('homeShortsWrap')?.contains(e.target)) document.getElementById('homeShortsDropdown')?.classList.remove('open');
+  if (!document.getElementById('searchShortsWrap')?.contains(e.target)) document.getElementById('searchShortsDropdown')?.classList.remove('open');
+});
+
+window.api?.onKeyArrow?.((key) => {
+  if (!ytPlayer || !ytCurrentVideoId) return;
+  try {
+    if (key === 'ArrowUp') { const v = Math.min(100, (ytPlayer.getVolume()||50) + 5); ytPlayer.setVolume(v); }
+    else if (key === 'ArrowDown') { const v = Math.max(0, (ytPlayer.getVolume()||50) - 5); ytPlayer.setVolume(v); }
+    else if (key === 'ArrowLeft') { const t = Math.max(0, ytPlayer.getCurrentTime() - 10); ytPlayer.seekTo(t, true); }
+    else if (key === 'ArrowRight') { ytPlayer.seekTo(ytPlayer.getCurrentTime() + 10, true); }
+  } catch(e) {}
+});
+
+window.api?.onShowChannel?.(() => {
+  if (ytCurrentChannelId) {
+    showChannelPlaylists(ytCurrentChannelId, ytCurrentChannelName);
+    if (ytCurrentVideoId) setTimeout(() => startYTPlayer(ytCurrentVideoId, true), 200);
+  }
+});
+
+function navigateVideo(dir) {
+  const list = currentTab === 'search' ? searchResults : currentResults;
+  if (!list.length) return;
+  const idx = list.findIndex(r => r.videoId === ytCurrentVideoId);
+  const next = idx + dir;
+  if (next < 0 || next >= list.length) return;
+  const r = list[next];
+  ytCurrentVideoId = r.videoId;
+  startYTPlayer(r.videoId, r.embeddable !== false);
+  updateSidePanelForVideo(r.videoId);
+}
+
+// ── Theme ──
+function applyTheme(theme) {
+  currentTheme = theme;
+  document.documentElement.setAttribute('data-theme', theme);
+  document.getElementById('themeIconMoon').style.display = theme === 'dark' ? 'block' : 'none';
+  document.getElementById('themeIconSun').style.display = theme === 'light' ? 'block' : 'none';
+}
+function toggleTheme() {
+  const next = currentTheme === 'dark' ? 'light' : 'dark';
+  applyTheme(next);
+  setConfig({ theme: next });
+}
+
+// ── Settings ──
+function openSettings() {
+  document.getElementById('apiKeyInput').value = API_KEYS.join('\n');
+  document.getElementById('interestsInput').value = INTERESTS;
+  document.getElementById('settingsModal').classList.add('open');
+}
+function closeSettings() { document.getElementById('settingsModal').classList.remove('open'); }
+async function saveSettings() {
+  const raw = document.getElementById('apiKeyInput').value;
+  API_KEYS = raw.split('\n').map(s => s.trim()).filter(Boolean);
+  API_KEY = API_KEYS[0] || '';
+  currentKeyIdx = 0;
+  INTERESTS = document.getElementById('interestsInput').value.trim();
+  homeActiveTopic = null;
+  await setConfig({ apiKeys: API_KEYS, apiKey: API_KEY, interests: INTERESTS });
+  closeSettings();
+  if (currentTab === 'home') { renderTopicChips(); loadHome(); }
+}
+
+// ── Tabs ──
+function switchTab(tab, isInit) {
+  const prev = currentTab;
+  currentTab = tab;
+  ['home','search','fav','playlist'].forEach(t => {
+    const el = document.getElementById('tab' + t.charAt(0).toUpperCase() + t.slice(1));
+    if (el) el.classList.toggle('active', t === tab);
+  });
+  document.getElementById('homeBar').style.display = tab === 'home' ? 'flex' : 'none';
+  document.getElementById('searchBar').style.display = tab === 'search' ? 'flex' : 'none';
+  const isFav = tab === 'fav';
+  document.getElementById('main').style.display = isFav ? 'none' : 'flex';
+  document.getElementById('favPanel').classList.toggle('active', isFav);
+  setConfig({ lastTab: tab });
+
+  if (tab === 'home') {
+    renderTopicChips();
+    if (homeResults.length) { currentResults = homeResults; renderTable(currentResults); }
+    else loadHome();
+  } else if (tab === 'search') {
+    if (searchResults.length) renderSearchGrid(getSortedSearchResults());
+    else showEmpty('검색어를 입력하세요');
+  } else if (tab === 'playlist') {
+    if (playlistResults.length) { currentResults = playlistResults; renderTable(currentResults); }
+    else showEmpty('즐겨찾기에서 재생목록을 선택하세요');
+  } else if (tab === 'fav') {
+    loadFavoritesTab();
+  }
+}
+
+// ── Shorts filter ──
+let homeShortsMode = 'off';   // 'off' | 'exclude' | 'only'
+let searchShortsMode = 'off';
+const SHORTS_LABELS = { off: '▾', exclude: '✂️', only: '🩳' };
+
+function toggleShortsDropdown(which) {
+  const id = which === 'home' ? 'homeShortsDropdown' : 'searchShortsDropdown';
+  document.getElementById(id).classList.toggle('open');
+}
+function applyShortsUI(mode) {
+  homeShortsMode = mode;
+  document.getElementById('homeShortsBtn').classList.toggle('checked', mode !== 'off');
+  document.getElementById('homeShortsLabel').textContent = SHORTS_LABELS[mode];
+  ['off','exclude','only'].forEach(m => document.getElementById('homeShorts-'+m).classList.toggle('active', m===mode));
+  document.getElementById('homeShortsDropdown').classList.remove('open');
+}
+function applySearchShortsUI(mode) {
+  searchShortsMode = mode;
+  document.getElementById('searchShortsBtn').classList.toggle('checked', mode !== 'off');
+  document.getElementById('searchShortsLabel').textContent = SHORTS_LABELS[mode];
+  ['off','exclude','only'].forEach(m => document.getElementById('searchShorts-'+m).classList.toggle('active', m===mode));
+  document.getElementById('searchShortsDropdown').classList.remove('open');
+}
+function setShortsFilterSilent(mode) { applyShortsUI(mode); }
+function setSearchShortsFilterSilent(mode) { applySearchShortsUI(mode); }
+function setShortsFilter(mode) { applyShortsUI(mode); setConfig({ homeShortsMode: mode }); loadHome(); }
+function setSearchShortsFilter(mode) { applySearchShortsUI(mode); setConfig({ searchShortsMode: mode }); }
+function isNoShorts() { return searchShortsMode === 'exclude'; }
+function isShortsOnly() { return searchShortsMode === 'only'; }
+let homeNoShorts = false;
+
+// ── Home topic chips ──
+function renderTopicChips() {
+  const topics = INTERESTS.split(',').map(s => s.trim()).filter(Boolean);
+  const row = document.getElementById('topicChipsRow');
+  if (!topics.length) { row.innerHTML = '<span style="font-size:12px;color:var(--text3)">설정에서 관심 주제를 입력하세요</span>'; return; }
+  if (homeActiveTopic && !topics.includes(homeActiveTopic)) homeActiveTopic = null;
+  row.innerHTML = topics.map(t =>
+    `<button class="topic-chip${homeActiveTopic === t ? ' active' : ''}" onclick="selectTopic('${escHtml(t)}')">${escHtml(t)}</button>`
+  ).join('');
+}
+function selectTopic(topic) {
+  homeActiveTopic = homeActiveTopic === topic ? null : topic;
+  setConfig({ homeActiveTopic });
+  renderTopicChips();
+  loadHome();
+}
+function toggleKoFilter(el) {
+  homeKoOnly = !homeKoOnly;
+  el.classList.toggle('checked', homeKoOnly);
+  setConfig({ koFilter: homeKoOnly });
+  loadHome();
+}
+
+// ── Search history ──
+function addToHistory(q) {
+  searchHistory = [q, ...searchHistory.filter(x => x !== q)].slice(0, 20);
+  setConfig({ searchHistory });
+}
+function deleteFromHistory(idx) {
+  searchHistory.splice(idx, 1);
+  setConfig({ searchHistory });
+  renderHistoryDropdown();
+}
+function renderHistoryDropdown() {
+  const el = document.getElementById('historyDropdown');
+  const q = document.getElementById('q').value.trim();
+  const filtered = q ? searchHistory.filter(h => h.includes(q)) : searchHistory;
+  if (!filtered.length) { el.style.display = 'none'; return; }
+  el.innerHTML = filtered.map((h, i) => {
+    const realIdx = searchHistory.indexOf(h);
+    return `<div class="history-item">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0;opacity:.5"><path d="M13 3a9 9 0 1 0 .001 18.001A9 9 0 0 0 13 3zm0 16a7 7 0 1 1 .001-14.001A7 7 0 0 1 13 19zm.5-11H12v6l5.25 3.15.75-1.23-4.5-2.67V8z"/></svg>
+      <span class="history-item-text" onclick="useHistory('${escHtml(h)}')">${escHtml(h)}</span>
+      <button class="history-del" onclick="event.stopPropagation();deleteFromHistory(${realIdx})">×</button>
+    </div>`;
+  }).join('');
+  el.style.display = 'block';
+}
+function useHistory(q) {
+  document.getElementById('q').value = q;
+  hideHistory();
+  doSearch();
+}
+function hideHistory() { document.getElementById('historyDropdown').style.display = 'none'; }
+
+// ── API helpers ──
+const BASE = 'https://www.googleapis.com/youtube/v3';
+const chCache = {};
+function getCurrentKey() { return API_KEYS[currentKeyIdx] || API_KEY; }
+function rotateKey() {
+  if (API_KEYS.length > 1) { currentKeyIdx = (currentKeyIdx + 1) % API_KEYS.length; return true; }
+  return false;
+}
+async function apiFetch(url, retried) {
+  const key = getCurrentKey();
+  const fullUrl = url.includes('&key=') ? url : url + '&key=' + key;
+  const r = await fetch(fullUrl); const d = await r.json();
+  if (d.error) {
+    if (!retried && (d.error.code === 403 || d.error.code === 429) && rotateKey()) {
+      return apiFetch(url, true);
+    }
+    throw new Error(d.error.message);
+  }
+  return d;
+}
+function fmtNum(n) {
+  n = parseInt(n) || 0;
+  if (n >= 1e8) return (n/1e8).toFixed(1) + '억';
+  if (n >= 1e4) return (n/1e4).toFixed(1) + '만';
+  if (n >= 1e3) return (n/1e3).toFixed(1) + 'K';
+  return n.toLocaleString();
+}
+function fmtVph(v) {
+  if (v >= 1e6) return (v/1e6).toFixed(1) + 'M/hr';
+  if (v >= 1e3) return (v/1e3).toFixed(1) + 'K/hr';
+  return Math.round(v) + '/hr';
+}
+function fmtAge(pub) {
+  const h = (Date.now() - new Date(pub)) / 3600000;
+  if (h < 1) return Math.round(h*60) + '분 전';
+  if (h < 24) return Math.round(h) + '시간 전';
+  if (h < 168) return Math.round(h/24) + '일 전';
+  if (h < 720) return Math.round(h/168) + '주 전';
+  if (h < 8760) return Math.round(h/720) + '개월 전';
+  return Math.round(h/8760) + '년 전';
+}
+function parseDur(iso) {
+  if (!iso) return 0;
+  const m = iso.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
+  if (!m) return 0;
+  return (parseInt(m[1]||0)*3600)+(parseInt(m[2]||0)*60)+parseInt(m[3]||0);
+}
+function escHtml(s) { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/'/g,'&#39;'); }
+
+// ── Fetch & process ──
+async function fetchVideos(videoIds, channelIds) {
+  const videoData = await apiFetch(`${BASE}/videos?part=statistics,contentDetails,snippet,status&id=${videoIds.join(',')}`);
+  const videoMap = {};
+  for (const v of videoData.items) videoMap[v.id] = v;
+  const uncached = channelIds.filter(id => !chCache[id]);
+  if (uncached.length) {
+    const chData = await apiFetch(`${BASE}/channels?part=statistics,contentDetails&id=${uncached.join(',')}`);
+    for (const ch of chData.items) chCache[ch.id] = { subs: parseInt(ch.statistics.subscriberCount||0), uploadsId: ch.contentDetails?.relatedPlaylists?.uploads||'', avgViews: null };
+  }
+  await Promise.all(channelIds.map(async (chId) => {
+    const ch = chCache[chId];
+    if (!ch || ch.avgViews !== null || !ch.uploadsId) return;
+    try {
+      const pl = await apiFetch(`${BASE}/playlistItems?part=contentDetails&playlistId=${ch.uploadsId}&maxResults=15`);
+      const ids = pl.items?.map(i => i.contentDetails.videoId) || [];
+      if (!ids.length) { ch.avgViews = 0; return; }
+      const rv = await apiFetch(`${BASE}/videos?part=statistics&id=${ids.join(',')}`);
+      const counts = rv.items.map(v => parseInt(v.statistics.viewCount||0));
+      ch.avgViews = counts.reduce((a,b)=>a+b,0)/counts.length;
+    } catch { ch.avgViews = 0; }
+  }));
+  return videoMap;
+}
+
+async function buildResults(items, videoMap, shortsMode) {
+  const results = [];
+  for (const item of items) {
+    const vid = videoMap[item.id?.videoId || item.id];
+    if (!vid) continue;
+    const dur = parseDur(vid.contentDetails?.duration);
+    const isShorts = (dur > 0 && dur <= 180) || /\bshorts\b/i.test(vid.snippet.title||'');
+    if (shortsMode === 'exclude' && isShorts) continue;
+    if (shortsMode === 'only' && !isShorts) continue;
+    const pub = vid.snippet.publishedAt;
+    const hoursAgo = Math.max(0.5, (Date.now() - new Date(pub)) / 3600000);
+    const views = parseInt(vid.statistics.viewCount||0);
+    const chId = vid.snippet.channelId;
+    const ch = chCache[chId] || { subs: 0, avgViews: 0 };
+    const vph = views / hoursAgo;
+    const subRatio = ch.subs > 0 ? views/ch.subs : 0;
+    const avgRatio = ch.avgViews > 0 ? views/ch.avgViews : 0;
+    results.push({ videoId: vid.id, title: vid.snippet.title, channel: vid.snippet.channelTitle, channelId: chId, thumbnail: vid.snippet.thumbnails.medium?.url||vid.snippet.thumbnails.default?.url, publishedAt: pub, hoursAgo, views, vph, subRatio, avgRatio, subs: ch.subs, avgViews: ch.avgViews||0, dur, embeddable: vid.status?.embeddable!==false });
+  }
+  const vphVals = results.map(r=>r.vph).sort((a,b)=>a-b);
+  const p70 = vphVals[Math.floor(vphVals.length*0.7)]||0;
+  for (const r of results) { let s=0; if(r.vph>=p70)s++; if(r.subRatio>=0.2)s++; if(r.avgRatio>=2.0)s++; r.score=s; }
+  return results;
+}
+
+// ── Home tab ──
+async function loadHome() {
+  if (!API_KEYS.length) { showEmpty('설정에서 API 키를 입력하세요'); return; }
+  const allTopics = INTERESTS.split(',').map(s=>s.trim()).filter(Boolean);
+  if (!allTopics.length) { showEmpty('설정에서 관심 주제를 입력하세요'); return; }
+  const query = homeActiveTopic || allTopics[Math.floor(Math.random()*allTopics.length)];
+  showLoading(`"${query}" 불러오는 중...`);
+  try {
+    const regionParam = homeKoOnly ? '&regionCode=KR' : '';
+    const homeDurationParam = homeShortsMode === 'exclude' ? '&videoDuration=medium' : homeShortsMode === 'only' ? '&videoDuration=short' : '';
+    const searchData = await apiFetch(`${BASE}/search?part=snippet&q=${encodeURIComponent(query)}&type=video&maxResults=20&order=date&relevanceLanguage=ko${regionParam}${homeDurationParam}`);
+    if (!searchData.items?.length) { showEmpty('결과 없음'); return; }
+    const videoIds = searchData.items.map(i => i.id.videoId);
+    const channelIds = [...new Set(searchData.items.map(i => i.snippet.channelId))];
+    const videoMap = await fetchVideos(videoIds, channelIds);
+    let results = await buildResults(searchData.items, videoMap, homeShortsMode);
+    homeResults = results;
+    currentResults = homeResults;
+    if (!currentResults.length) { showEmpty('한국 영상 없음'); return; }
+    renderTable(currentResults);
+  } catch(e) { showEmpty('오류: ' + e.message); }
+}
+
+// ── Search ──
+async function doSearch() {
+  const q = document.getElementById('q').value.trim();
+  if (!q || !API_KEYS.length) { if (!API_KEYS.length) openSettings(); return; }
+  addToHistory(q);
+  const btn = document.getElementById('searchBtn');
+  btn.disabled = true; btn.textContent = '검색 중...';
+  showLoading('검색 중...');
+  try {
+    const shortsMode = searchShortsMode;
+    const durationParam = shortsMode === 'exclude' ? '&videoDuration=medium' : shortsMode === 'only' ? '&videoDuration=short' : '';
+    const searchData = await apiFetch(`${BASE}/search?part=snippet&q=${encodeURIComponent(q)}&type=video&maxResults=30&relevanceLanguage=ko&regionCode=KR${durationParam}`);
+    if (!searchData.items?.length) { showEmpty('검색 결과 없음'); return; }
+    const videoIds = searchData.items.map(i => i.id.videoId);
+    showLoading('영상 정보 가져오는 중...');
+    const vData = await apiFetch(`${BASE}/videos?part=contentDetails,statistics&id=${videoIds.join(',')}`);
+    const vMap = {};
+    for (const v of (vData.items||[])) vMap[v.id] = v;
+    searchResults = searchData.items.map(item => {
+      const vid = vMap[item.id.videoId] || {};
+      return { videoId: item.id.videoId, title: item.snippet.title, channel: item.snippet.channelTitle, channelId: item.snippet.channelId, thumbnail: item.snippet.thumbnails?.high?.url || item.snippet.thumbnails?.medium?.url || '', publishedAt: item.snippet.publishedAt, dur: parseDur(vid.contentDetails?.duration), views: parseInt(vid.statistics?.viewCount||0) };
+    });
+    renderSearchGrid(searchResults);
+  } catch(e) { showEmpty('오류: ' + e.message); }
+  finally { btn.disabled = false; btn.textContent = '검색'; }
+}
+function renderSearchGrid(items) {
+  const panel = document.getElementById('tablePanel');
+  if (!items.length) { panel.innerHTML = '<div class="center-msg"><div>검색 결과가 없어요.</div></div>'; return; }
+  panel.innerHTML = `<div class="search-grid">${items.map(r => {
+    const pos = parseInt(localStorage.getItem('ktube_pos_' + r.videoId)||'0');
+    const pct = (pos > 3 && r.dur > 0) ? Math.min(99, Math.round(pos/r.dur*100)) : 0;
+    const durStr = r.dur > 0 ? fmtTime(r.dur) : '';
+    const progBar = pct > 0 ? `<div class="thumb-progress" style="width:${pct}%;height:3px;border-radius:0 0 0 4px"></div>` : '';
+    return `<div class="search-card" onclick="openSearchVideo('${r.videoId}')" oncontextmenu="showCtxMenu(event,'${r.videoId}')">
+      <div class="search-card-thumb-wrap">
+        <img class="search-card-thumb" src="${r.thumbnail}" loading="lazy">
+        ${durStr ? `<div class="search-card-dur">${durStr}</div>` : ''}
+        ${progBar}
+      </div>
+      <div class="search-card-info">
+        <div class="search-card-title">${escHtml(r.title)}</div>
+        <div class="search-card-channel">${escHtml(r.channel)}</div>
+        <div class="search-card-meta">${fmtAge(r.publishedAt)}${r.views ? ' · ' + fmtNum(r.views) + '회' : ''}</div>
+      </div>
+    </div>`;
+  }).join('')}</div>`;
+}
+function openSearchVideo(videoId) {
+  document.getElementById('sidePanel').classList.add('open');
+  document.getElementById('divider').style.display = 'block';
+  ytCurrentVideoId = videoId;
+  startYTPlayer(videoId, true);
+  const r = searchResults.find(x => x.videoId === videoId);
+  if (r) trackRecentPlay(r.videoId, r.title, r.channel, r.thumbnail);
+  updateSidePanelForVideo(videoId);
+}
+
+// ── Table render ──
+function setSort(key) {
+  if (sortKey === key) sortDir = sortDir==='desc'?'asc':'desc';
+  else { sortKey = key; sortDir = 'desc'; }
+  renderTable(currentResults);
+}
+function sortArrow(key) {
+  if (sortKey !== key) return '<span class="sort-arrow inactive">↕</span>';
+  return `<span class="sort-arrow">${sortDir==='desc'?'▼':'▲'}</span>`;
+}
+function sortedResults(results) {
+  const copy = [...results], mul = sortDir==='desc'?1:-1;
+  switch(sortKey) {
+    case 'score': return copy.sort((a,b)=>(b.score-a.score||b.avgRatio-a.avgRatio)*mul);
+    case 'vph':   return copy.sort((a,b)=>(b.vph-a.vph)*mul);
+    case 'sub':   return copy.sort((a,b)=>(b.subRatio-a.subRatio)*mul);
+    case 'avg':   return copy.sort((a,b)=>(b.avgRatio-a.avgRatio)*mul);
+    case 'views': return copy.sort((a,b)=>(b.views-a.views)*mul);
+  }
+  return copy;
+}
+function scoreLabel(s) {
+  if (s>=3) return `<span class="score-pill s3">💎 강추</span>`;
+  if (s>=2) return `<span class="score-pill s2">🔥 탑승</span>`;
+  if (s>=1) return `<span class="score-pill s1">👍 주목</span>`;
+  return `<span class="score-pill s0">—</span>`;
+}
+function metricColor(ratio, t1, t2) { return ratio>=t2?'c-green':ratio>=t1?'c-gold':'c-gray'; }
+
+function renderTable(results) {
+  const sorted = sortedResults(results);
+  const panel = document.getElementById('tablePanel');
+  const sa = (k,label) => `<th class="r sortable${sortKey===k?' sort-active':''}" onclick="setSort('${k}')">${label}${sortArrow(k)}</th>`;
+  let html = `<table><thead><tr>
+    <th style="width:280px">영상</th>
+    ${sa('score','점수')} ${sa('vph','⚡ 시간당')} ${sa('sub','👥 구독자 대비')} ${sa('avg','📈 채널 평균 대비')} ${sa('views','총 조회수')}
+  </tr></thead><tbody>`;
+  for (const r of sorted) {
+    const subColor = metricColor(r.subRatio, 0.1, 0.3);
+    const avgColor = metricColor(r.avgRatio, 1, 2.5);
+    const pos = parseInt(localStorage.getItem('ktube_pos_' + r.videoId) || '0');
+    const dur = parseInt(localStorage.getItem('ktube_dur_' + r.videoId) || '0');
+    const pct = (pos > 3 && dur > 0) ? Math.min(99, Math.round(pos / dur * 100)) : 0;
+    html += `<tr data-id="${r.videoId}" onclick="selectRow(this,'${r.videoId}')" oncontextmenu="showCtxMenu(event,'${r.videoId}')">
+      <td><div class="video-cell"><div class="thumb-wrap"><img class="thumb-sm" src="${r.thumbnail}" loading="lazy">${pct > 0 ? `<div class="thumb-progress" style="width:${pct}%"></div>` : ''}</div>
+        <div class="video-info">
+          <div class="video-title">${escHtml(r.title)}</div>
+          <div class="video-channel">${escHtml(r.channel)}</div>
+          <div class="video-age">${fmtAge(r.publishedAt)}${!r.embeddable?' · ↗ YT':''}</div>
+        </div></div></td>
+      <td class="r">${scoreLabel(r.score)}</td>
+      <td class="r metric-cell"><div class="metric-val c-blue">${fmtVph(r.vph)}</div></td>
+      <td class="r metric-cell"><div class="metric-val ${subColor}">${(r.subRatio*100).toFixed(1)}%</div><div class="metric-sub">${r.subs>0?'구독자 '+fmtNum(r.subs):'비공개'}</div></td>
+      <td class="r metric-cell"><div class="metric-val ${avgColor}">${r.avgRatio.toFixed(1)}x</div><div class="metric-sub">평균 ${fmtNum(r.avgViews)}</div></td>
+      <td class="r metric-cell"><div class="metric-val">${fmtNum(r.views)}</div></td>
+    </tr>`;
+  }
+  html += '</tbody></table>';
+  panel.innerHTML = html;
+}
+
+// ── Side panel ──
+function selectRow(tr, videoId) {
+  if (activeRow) activeRow.classList.remove('active');
+  tr.classList.add('active'); activeRow = tr;
+  const r = currentResults.find(x => x.videoId === videoId);
+  if (!r) return;
+  const link = document.getElementById('sideYtLink');
+  link.href = `https://youtu.be/${videoId}`;
+  const saved = parseInt(localStorage.getItem('ktube_pos_' + videoId) || '0');
+  link.textContent = saved > 10 ? `↗ YouTube에서 열기  (이어보기: ${fmtTime(saved)})` : '↗ YouTube에서 열기';
+  trackRecentPlay(r.videoId, r.title, r.channel, r.thumbnail);
+  startYTPlayer(videoId, r.embeddable);
+  const subColor = r.subRatio>=0.3?'c-green':r.subRatio>=0.1?'c-gold':'c-gray';
+  const avgColor = r.avgRatio>=2.5?'c-green':r.avgRatio>=1?'c-gold':'c-gray';
+  document.getElementById('sideInfo').innerHTML = `
+    <div class="side-title">${escHtml(r.title)}</div>
+    <div class="side-channel">${escHtml(r.channel)} · ${fmtAge(r.publishedAt)}</div>
+    <div class="side-metrics">
+      <div class="side-metric"><div class="sm-label">⚡ 시간당</div><div class="sm-value c-blue">${fmtVph(r.vph)}</div><div class="sm-sub">총 ${fmtNum(r.views)}</div></div>
+      <div class="side-metric"><div class="sm-label">👥 구독자 대비</div><div class="sm-value ${subColor}">${(r.subRatio*100).toFixed(1)}%</div><div class="sm-sub">${r.subs>0?fmtNum(r.subs):'비공개'}</div></div>
+      <div class="side-metric"><div class="sm-label">📈 채널 평균</div><div class="sm-value ${avgColor}">${r.avgRatio.toFixed(1)}x</div><div class="sm-sub">평균 ${fmtNum(r.avgViews)}</div></div>
+    </div>`;
+  const sp2 = document.getElementById('sidePanel');
+  sp2.classList.add('open');
+  document.getElementById('divider').style.display = 'block';
+  getConfig().then(cfg => {
+    if (cfg.dividerTableWidth && cfg.dividerSideWidth) {
+      const tp2 = document.getElementById('tablePanel');
+      const mainW = sp2.parentElement.offsetWidth;
+      const isPct = cfg.dividerTableWidth.includes('%');
+      if (isPct) {
+        tp2.style.flex = 'none';
+        tp2.style.width = cfg.dividerTableWidth;
+        sp2.style.width = cfg.dividerSideWidth;
+      } else {
+        // 구형 px 저장값: 현재 창에 맞으면 적용, 아니면 버림
+        const tw = parseInt(cfg.dividerTableWidth);
+        const sw = parseInt(cfg.dividerSideWidth);
+        if (tw + sw + 4 <= mainW && sw >= 200 && tw >= 180) {
+          tp2.style.flex = 'none';
+          tp2.style.width = cfg.dividerTableWidth;
+          sp2.style.width = cfg.dividerSideWidth;
+        }
+      }
+    }
+  });
+}
+function closeSide() {
+  stopYTPlayer();
+  const sp = document.getElementById('sidePanel'), tp = document.getElementById('tablePanel');
+  sp.classList.remove('open'); sp.style.width=''; tp.style.flex=''; tp.style.width='';
+  document.getElementById('divider').style.display = 'none';
+  if (activeRow) { activeRow.classList.remove('active'); activeRow = null; }
+}
+function fmtTime(s) { const m=Math.floor(s/60),sec=s%60; return `${m}:${String(sec).padStart(2,'0')}`; }
+
+// ── Context menu ──
+function showCtxMenu(e, videoId) {
+  e.preventDefault(); e.stopPropagation();
+  ctxVideoId = videoId;
+  const menu = document.getElementById('ctxMenu');
+  menu.style.display = 'block';
+  const x = Math.min(e.clientX, window.innerWidth - 170);
+  const y = Math.min(e.clientY, window.innerHeight - 60);
+  menu.style.left = x + 'px'; menu.style.top = y + 'px';
+}
+function hideCtxMenu() { document.getElementById('ctxMenu').style.display = 'none'; }
+
+// ── Favorites tab ──
+function loadFavoritesTab() {
+  switchFavTab(favSidebarTab || 'recent');
+}
+function openFavVideo(videoId) {
+  document.getElementById('sidePanel').classList.add('open');
+  document.getElementById('divider').style.display = 'block';
+  ytCurrentVideoId = videoId;
+  startYTPlayer(videoId, true);
+  updateSidePanelForVideo(videoId);
+}
+
+// ── Saved playlists ──
+function toggleFavPlaylist(playlistId, title, channelName, thumbnail, btn) {
+  const idx = savedPlaylists.findIndex(s => s.playlistId === playlistId);
+  if (idx >= 0) {
+    savedPlaylists.splice(idx, 1);
+    btn.textContent = '☆'; btn.classList.remove('saved'); btn.title = '즐겨찾기 추가';
+  } else {
+    savedPlaylists.unshift({ playlistId, title, channelName, thumbnail });
+    btn.textContent = '★'; btn.classList.add('saved'); btn.title = '즐겨찾기 해제';
+  }
+  setConfig({ savedPlaylists });
+}
+function renderFavPlaylists() {
+  const el = document.getElementById('favContent');
+  if (!savedPlaylists.length) {
+    el.innerHTML = '<div class="fav-empty">저장된 재생목록이 없어요.<br>재생목록 모달에서 ☆ 버튼으로 추가하세요.</div>'; return;
+  }
+  el.innerHTML = savedPlaylists.map(p => `
+    <div class="fav-item" onclick="loadFavPlaylist('${p.playlistId}','${escHtml(p.title)}')">
+      <img class="fav-thumb" src="${p.thumbnail||''}" loading="lazy" onerror="this.style.display='none'">
+      <div class="fav-info">
+        <div class="fav-title">${escHtml(p.title)}</div>
+        <div class="fav-channel">${escHtml(p.channelName)}</div>
+      </div>
+      <button class="fav-del" onclick="event.stopPropagation();removeSavedPlaylist('${p.playlistId}')" title="삭제">×</button>
+    </div>`).join('');
+}
+function loadFavPlaylist(playlistId, title) {
+  loadPlaylist(playlistId, title);
+}
+function removeSavedPlaylist(playlistId) {
+  savedPlaylists = savedPlaylists.filter(s => s.playlistId !== playlistId);
+  setConfig({ savedPlaylists });
+  renderFavPlaylists();
+}
+
+// ── Fav sidebar tab ──
+function switchFavTab(tab) {
+  favSidebarTab = tab;
+  document.getElementById('favTabRecent').classList.toggle('active', tab === 'recent');
+  document.getElementById('favTabPlaylists').classList.toggle('active', tab === 'playlists');
+  if (tab === 'recent') renderRecentPlays();
+  else if (tab === 'playlists') renderFavPlaylists();
+}
+
+// ── Recent plays ──
+function trackRecentPlay(videoId, title, channel, thumbnail) {
+  recentPlays = recentPlays.filter(r => r.videoId !== videoId);
+  recentPlays.unshift({ videoId, title, channel, thumbnail, playedAt: Date.now() });
+  if (recentPlays.length > 100) recentPlays = recentPlays.slice(0, 100);
+  setConfig({ recentPlays });
+}
+function renderRecentPlays() {
+  const el = document.getElementById('favContent');
+  if (!recentPlays.length) { el.innerHTML = '<div class="fav-empty">재생 기록이 없어요.</div>'; return; }
+  const today = new Date(); today.setHours(0,0,0,0);
+  const yesterday = new Date(today); yesterday.setDate(yesterday.getDate()-1);
+  const groups = {};
+  for (const r of recentPlays) {
+    const d = new Date(r.playedAt); d.setHours(0,0,0,0);
+    const key = d >= today ? '오늘' : d >= yesterday ? '어제' : `${new Date(r.playedAt).getMonth()+1}월 ${new Date(r.playedAt).getDate()}일`;
+    if (!groups[key]) groups[key] = [];
+    groups[key].push(r);
+  }
+  el.innerHTML = Object.entries(groups).map(([date, items]) => `
+    <div class="recent-date-group">${date}</div>
+    ${items.map(r => `<div class="fav-item" onclick="openFavVideo('${r.videoId}')">
+      <img class="fav-thumb" src="${r.thumbnail||''}" loading="lazy" onerror="this.style.display='none'">
+      <div class="fav-info">
+        <div class="fav-title">${escHtml(r.title)}</div>
+        <div class="fav-channel">${escHtml(r.channel)} · ${fmtAge(new Date(r.playedAt).toISOString())}</div>
+      </div>
+    </div>`).join('')}
+  `).join('');
+}
+
+// ── Channel playlists ──
+function ctxShowChannelPlaylists() {
+  hideCtxMenu();
+  const list = currentTab === 'search' ? searchResults : currentResults;
+  const r = list.find(x => x.videoId === ctxVideoId);
+  if (!r?.channelId) return;
+  showChannelPlaylists(r.channelId, r.channel);
+}
+function openCurrentChannel() {
+  if (ytCurrentChannelId) showChannelPlaylists(ytCurrentChannelId, ytCurrentChannelName);
+}
+
+function cycleSearchSort() {
+  const order = ['relevance', 'newest', 'oldest'];
+  const labels = { relevance: '📅 관련도순', newest: '📅 최신순', oldest: '📅 과거순' };
+  searchSortMode = order[(order.indexOf(searchSortMode) + 1) % order.length];
+  document.getElementById('searchSortBtn').textContent = labels[searchSortMode];
+  if (searchResults.length) renderSearchGrid(getSortedSearchResults());
+}
+
+function getSortedSearchResults() {
+  if (searchSortMode === 'newest') return [...searchResults].sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt));
+  if (searchSortMode === 'oldest') return [...searchResults].sort((a, b) => new Date(a.publishedAt) - new Date(b.publishedAt));
+  return searchResults;
+}
+
+function cyclePlaylistSort() {
+  const order = ['default', 'newest', 'oldest'];
+  const labels = { default: '📅 목록순', newest: '📅 최신순', oldest: '📅 과거순' };
+  playlistSortMode = order[(order.indexOf(playlistSortMode) + 1) % order.length];
+  let sorted = [...playlistResults];
+  if (playlistSortMode === 'newest') sorted.sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt));
+  else if (playlistSortMode === 'oldest') sorted.sort((a, b) => new Date(a.publishedAt) - new Date(b.publishedAt));
+  currentResults = sorted;
+  playlistQueue = sorted.map(r => ({ videoId: r.videoId, title: r.title, channel: r.channel, thumbnail: r.thumbnail, embeddable: r.embeddable }));
+  playlistQueueIdx = 0;
+  renderTable(sorted);
+  document.getElementById('tablePanel').insertAdjacentHTML('afterbegin', `<div id="playlistCtrlBar" style="display:flex;gap:8px;padding:8px 12px;border-bottom:1px solid var(--border)"><button class="filter-chip" onclick="shufflePlaylist()">🔀 랜덤 재생</button><button class="filter-chip" id="playlistSortBtn" onclick="cyclePlaylistSort()">${labels[playlistSortMode]}</button></div>`);
+  updateQueueBadge();
+}
+
+function shufflePlaylist() {
+  if (!playlistQueue.length) return;
+  for (let i = playlistQueue.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [playlistQueue[i], playlistQueue[j]] = [playlistQueue[j], playlistQueue[i]];
+  }
+  playlistQueueIdx = 0;
+  playQueueItem(0);
+}
+async function showChannelPlaylists(channelId, channelName) {
+  document.getElementById('playlistChannelName').textContent = channelName;
+  document.getElementById('playlistList').innerHTML = '<div style="text-align:center;padding:20px;color:var(--text3)">불러오는 중...</div>';
+  document.getElementById('playlistModal').classList.add('open');
+  try {
+    const data = await apiFetch(`${BASE}/playlists?part=snippet,contentDetails&channelId=${channelId}&maxResults=25`);
+    if (!data.items?.length) { document.getElementById('playlistList').innerHTML = '<div style="color:var(--text3);text-align:center;padding:20px">재생목록 없음</div>'; return; }
+    const channelName = document.getElementById('playlistChannelName').textContent;
+    document.getElementById('playlistList').innerHTML = data.items.map(p => {
+      const isSaved = savedPlaylists.some(s => s.playlistId === p.id);
+      return `
+      <div class="playlist-item" onclick="loadPlaylist('${p.id}','${escHtml(p.snippet.title)}')">
+        <img class="playlist-thumb" src="${p.snippet.thumbnails?.medium?.url||''}" onerror="this.style.display='none'">
+        <div class="playlist-info">
+          <div class="playlist-title">${escHtml(p.snippet.title)}</div>
+          <div class="playlist-count">영상 ${p.contentDetails?.itemCount||'?'}개</div>
+        </div>
+        <button class="fav-playlist-btn${isSaved?' saved':''}" title="${isSaved?'즐겨찾기 해제':'즐겨찾기 추가'}"
+          onclick="event.stopPropagation();toggleFavPlaylist('${p.id}','${escHtml(p.snippet.title)}','${escHtml(channelName)}','${p.snippet.thumbnails?.medium?.url||''}',this)">
+          ${isSaved?'★':'☆'}
+        </button>
+      </div>`;
+    }).join('');
+  } catch(e) { document.getElementById('playlistList').innerHTML = `<div style="color:var(--red);padding:12px">${e.message}</div>`; }
+}
+function closePlaylistModal() { document.getElementById('playlistModal').classList.remove('open'); }
+async function loadPlaylist(playlistId, playlistTitle) {
+  closePlaylistModal();
+  currentTab = 'playlist';
+  ['home','search','fav','playlist'].forEach(t => {
+    const el = document.getElementById('tab' + t.charAt(0).toUpperCase() + t.slice(1));
+    if (el) el.classList.toggle('active', t === 'playlist');
+  });
+  document.getElementById('homeBar').style.display = 'none';
+  document.getElementById('searchBar').style.display = 'none';
+  document.getElementById('main').style.display = 'flex';
+  document.getElementById('favPanel').classList.remove('active');
+  showLoading(`"${playlistTitle}" 불러오는 중...`);
+  try {
+    const plData = await apiFetch(`${BASE}/playlistItems?part=contentDetails&playlistId=${playlistId}&maxResults=50`);
+    const videoIds = plData.items?.map(i => i.contentDetails.videoId).filter(Boolean) || [];
+    if (!videoIds.length) { showEmpty('재생목록이 비어있어요'); return; }
+    const vData = await apiFetch(`${BASE}/videos?part=statistics,snippet,contentDetails,status&id=${videoIds.join(',')}`);
+    const channelIds = [...new Set(vData.items.map(v => v.snippet.channelId))];
+    const uncached = channelIds.filter(id => !chCache[id]);
+    if (uncached.length) {
+      const chData = await apiFetch(`${BASE}/channels?part=statistics,contentDetails&id=${uncached.join(',')}`);
+      for (const ch of chData.items) chCache[ch.id] = { subs: parseInt(ch.statistics.subscriberCount||0), uploadsId: ch.contentDetails?.relatedPlaylists?.uploads||'', avgViews: 0 };
+    }
+    const fakeItems = vData.items.map(v => ({ id: v.id }));
+    const videoMap = {};
+    for (const v of vData.items) videoMap[v.id] = v;
+    playlistResults = await buildResults(fakeItems, videoMap, 'off');
+    currentResults = playlistResults;
+    playlistQueue = currentResults.map(r => ({ videoId: r.videoId, title: r.title, channel: r.channel, thumbnail: r.thumbnail, embeddable: r.embeddable }));
+    playlistQueueIdx = 0;
+    renderTable(currentResults);
+    const panel = document.getElementById('tablePanel');
+    playlistSortMode = 'default';
+    panel.insertAdjacentHTML('afterbegin', `<div id="playlistCtrlBar" style="display:flex;gap:8px;padding:8px 12px;border-bottom:1px solid var(--border)"><button class="filter-chip" onclick="shufflePlaylist()">🔀 랜덤 재생</button><button class="filter-chip" id="playlistSortBtn" onclick="cyclePlaylistSort()">📅 목록순</button></div>`);
+    updateQueueBadge();
+    if (playlistQueue.length) {
+      const first = playlistQueue[0];
+      const tr = document.querySelector(`tr[data-id="${first.videoId}"]`);
+      if (tr) selectRow(tr, first.videoId);
+    }
+  } catch(e) { showEmpty('오류: ' + e.message); }
+}
+
+// ── Queue ──
+function playQueueItem(idx) {
+  playlistQueueIdx = idx;
+  const item = playlistQueue[idx];
+  if (!item) return;
+  ytCurrentVideoId = item.videoId;
+  startYTPlayer(item.videoId, item.embeddable !== false);
+  updateSidePanelForVideo(item.videoId);
+  updateQueueBadge();
+  const tr = document.querySelector(`tr[data-id="${item.videoId}"]`);
+  if (tr) { if (activeRow) activeRow.classList.remove('active'); tr.classList.add('active'); activeRow = tr; }
+}
+function stopQueue() {
+  playlistQueue = []; playlistQueueIdx = -1;
+  updateQueueBadge();
+}
+function updateQueueBadge() {
+  const badge = document.getElementById('queueBadge');
+  if (!playlistQueue.length) { badge.classList.remove('visible'); return; }
+  badge.classList.add('visible');
+  document.getElementById('queuePos').textContent = `▶ ${playlistQueueIdx+1}/${playlistQueue.length}`;
+}
+
+// ── UI helpers ──
+function showLoading(msg) {
+  document.getElementById('tablePanel').innerHTML = `<div class="center-msg"><div class="spinner"></div><div class="load-msg">${msg}</div></div>`;
+}
+function showEmpty(msg) {
+  document.getElementById('tablePanel').innerHTML = `<div class="center-msg"><div class="load-msg">${msg}</div></div>`;
+}
+
+// ── Divider resize ──
+(function() {
+  const divider = document.getElementById('divider');
+  let dragging = false, startX = 0, startTW = 0, startSW = 0;
+  divider.addEventListener('mousedown', e => {
+    const tp = document.getElementById('tablePanel'), sp = document.getElementById('sidePanel');
+    dragging = true; startX = e.clientX; startTW = tp.offsetWidth; startSW = sp.offsetWidth;
+    sp.style.transition = 'none'; divider.classList.add('dragging');
+    document.body.style.cursor = 'col-resize'; document.body.style.userSelect = 'none';
+    document.querySelectorAll('iframe').forEach(f => f.style.pointerEvents = 'none');
+    e.preventDefault();
+  });
+  document.addEventListener('mousemove', e => {
+    if (!dragging) return;
+    const dx = e.clientX - startX;
+    const tp = document.getElementById('tablePanel'), sp = document.getElementById('sidePanel');
+    tp.style.flex = 'none'; tp.style.width = Math.max(280, startTW+dx) + 'px'; sp.style.width = Math.max(240, startSW-dx) + 'px';
+  });
+  document.addEventListener('mouseup', () => {
+    if (!dragging) return;
+    dragging = false; divider.classList.remove('dragging');
+    document.body.style.cursor = ''; document.body.style.userSelect = '';
+    const sp = document.getElementById('sidePanel');
+    sp.style.transition = '';
+    document.querySelectorAll('iframe').forEach(f => f.style.pointerEvents = '');
+    const tp = document.getElementById('tablePanel');
+    if (tp.style.width) {
+      const mainW = tp.parentElement.offsetWidth;
+      const twPct = (tp.offsetWidth / mainW * 100).toFixed(1) + '%';
+      const swPct = (sp.offsetWidth / mainW * 100).toFixed(1) + '%';
+      setConfig({ dividerTableWidth: twPct, dividerSideWidth: swPct });
+    }
+  });
+})();
+</script>
+</body>
+</html>
