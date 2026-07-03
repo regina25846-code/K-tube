@@ -557,6 +557,7 @@ let ytSaveInterval = null;
 let ytCurrentVideoId = null;
 let ytCurrentChannelId = null;
 let ytCurrentChannelName = '';
+let ytResizeObserver = null;
 
 (function() {
   const tag = document.createElement('script');
@@ -573,13 +574,26 @@ function startYTPlayer(videoId, embeddable) {
   container.innerHTML = '<div id="yt-inner"></div>';
   clearInterval(ytSaveInterval);
   if (ytPlayer) { try { ytPlayer.destroy(); } catch(e){} ytPlayer = null; }
+  if (ytResizeObserver) { ytResizeObserver.disconnect(); ytResizeObserver = null; }
   ytCurrentVideoId = videoId;
   window.api?.setVideoMode?.(true);
+  // 패널이 열린 후 호출되므로 실제 픽셀 크기를 읽어서 전달
+  const initW = container.offsetWidth || 640;
+  const initH = container.offsetHeight || 480;
   ytPlayer = new YT.Player('yt-inner', {
-    width: '100%', height: '100%', videoId,
+    width: initW, height: initH, videoId,
     playerVars: { autoplay: 1, start: Math.floor(saved), rel: 0 },
     events: {
       onReady() {
+        // 컨테이너 크기 변화 시 플레이어 자동 리사이즈
+        const wrap = document.getElementById('ytPlayerContainer');
+        if (wrap && window.ResizeObserver) {
+          ytResizeObserver = new ResizeObserver(() => {
+            if (ytPlayer && ytPlayer.setSize && wrap.offsetWidth > 0)
+              ytPlayer.setSize(wrap.offsetWidth, wrap.offsetHeight);
+          });
+          ytResizeObserver.observe(wrap);
+        }
         ytSaveInterval = setInterval(() => {
           if (!ytPlayer || !ytCurrentVideoId) return;
           try {
