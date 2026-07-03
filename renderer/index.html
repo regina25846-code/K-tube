@@ -1152,7 +1152,6 @@ function selectRow(tr, videoId) {
   const saved = parseInt(localStorage.getItem('ktube_pos_' + videoId) || '0');
   link.textContent = saved > 10 ? `↗ YouTube에서 열기  (이어보기: ${fmtTime(saved)})` : '↗ YouTube에서 열기';
   trackRecentPlay(r.videoId, r.title, r.channel, r.thumbnail);
-  startYTPlayer(videoId, r.embeddable);
   const subColor = r.subRatio>=0.3?'c-green':r.subRatio>=0.1?'c-gold':'c-gray';
   const avgColor = r.avgRatio>=2.5?'c-green':r.avgRatio>=1?'c-gold':'c-gray';
   document.getElementById('sideInfo').innerHTML = `
@@ -1164,28 +1163,19 @@ function selectRow(tr, videoId) {
       <div class="side-metric"><div class="sm-label">📈 채널 평균</div><div class="sm-value ${avgColor}">${r.avgRatio.toFixed(1)}x</div><div class="sm-sub">평균 ${fmtNum(r.avgViews)}</div></div>
     </div>`;
   const sp2 = document.getElementById('sidePanel');
+  const wasAlreadyOpen = sp2.classList.contains('open');
   sp2.classList.add('open');
   document.getElementById('divider').style.display = 'block';
   getConfig().then(cfg => {
-    if (cfg.dividerTableWidth && cfg.dividerSideWidth) {
+    if (cfg.dividerTableWidth && cfg.dividerSideWidth && cfg.dividerTableWidth.includes('%')) {
       const tp2 = document.getElementById('tablePanel');
-      const mainW = sp2.parentElement.offsetWidth;
-      const isPct = cfg.dividerTableWidth.includes('%');
-      if (isPct) {
-        tp2.style.flex = 'none';
-        tp2.style.width = cfg.dividerTableWidth;
-        sp2.style.width = cfg.dividerSideWidth;
-      } else {
-        // 구형 px 저장값: 현재 창에 맞으면 적용, 아니면 버림
-        const tw = parseInt(cfg.dividerTableWidth);
-        const sw = parseInt(cfg.dividerSideWidth);
-        if (tw + sw + 4 <= mainW && sw >= 200 && tw >= 180) {
-          tp2.style.flex = 'none';
-          tp2.style.width = cfg.dividerTableWidth;
-          sp2.style.width = cfg.dividerSideWidth;
-        }
-      }
+      tp2.style.flex = 'none';
+      tp2.style.width = cfg.dividerTableWidth;
+      sp2.style.width = cfg.dividerSideWidth;
     }
+    // 패널이 이미 열려 있으면 즉시, 처음 열리면 CSS transition 후에 플레이어 초기화
+    const delay = wasAlreadyOpen ? 0 : 270;
+    setTimeout(() => startYTPlayer(videoId, r.embeddable), delay);
   });
 }
 function closeSide() {
@@ -1478,6 +1468,10 @@ function showEmpty(msg) {
       const twPct = (tp.offsetWidth / mainW * 100).toFixed(1) + '%';
       const swPct = (sp.offsetWidth / mainW * 100).toFixed(1) + '%';
       setConfig({ dividerTableWidth: twPct, dividerSideWidth: swPct });
+    }
+    if (typeof ytPlayer !== 'undefined' && ytPlayer && ytPlayer.setSize) {
+      const wrap = document.getElementById('ytPlayerContainer');
+      if (wrap) setTimeout(() => ytPlayer.setSize(wrap.offsetWidth, wrap.offsetHeight), 50);
     }
   });
 })();
