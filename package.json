@@ -35,7 +35,8 @@
     },
     "nsis": {
       "oneClick": false,
-      "allowToChangeInstallationDirectory": false
+      "allowToChangeInstallationDirectory": false,
+      "runAfterFinish": false
     },
     "portable": {
       "artifactName": "K-Tube-${version}-portable.exe"
