@@ -1,0 +1,51 @@
+{
+  "name": "kris-tube",
+  "version": "1.0.3",
+  "description": "K-Tube — YouTube 알고리즘 영상 분석기",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder --win --x64"
+  },
+  "build": {
+    "appId": "com.kris.tube",
+    "productName": "K-Tube",
+    "asar": false,
+    "publish": {
+      "provider": "github",
+      "owner": "regina25846-code",
+      "repo": "K-tube"
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "assets/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": false
+    },
+    "portable": {
+      "artifactName": "K-Tube-${version}-portable.exe"
+    }
+  },
+  "devDependencies": {
+    "electron": "^31.7.7",
+    "electron-builder": "^24.13.3"
+  },
+  "dependencies": {
+    "electron-updater": "^6.8.9"
+  }
+}

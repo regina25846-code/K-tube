@@ -36,7 +36,7 @@ function startLocalServer(cb) {
       }
       const ext = path.extname(filePath);
       const mime = { '.html':'text/html', '.js':'application/javascript', '.css':'text/css', '.ttf':'font/ttf', '.woff2':'font/woff2' };
-      res.writeHead(200, { 'Content-Type': mime[ext] || 'application/octet-stream' });
+      res.writeHead(200, { 'Content-Type': mime[ext] || 'application/octet-stream', 'Cache-Control': 'no-cache, no-store' });
       res.end(data);
     });
   });
@@ -126,6 +126,19 @@ function createWindow() {
   setupAutoUpdater();
 }
 
+let aboutWin = null;
+function openAboutWindow() {
+  if (aboutWin && !aboutWin.isDestroyed()) { aboutWin.focus(); return; }
+  aboutWin = new BrowserWindow({
+    width: 320, height: 340,
+    frame: false, resizable: false,
+    alwaysOnTop: true, skipTaskbar: true,
+    webPreferences: { contextIsolation: true, nodeIntegration: false }
+  });
+  aboutWin.loadFile(path.join(__dirname, 'renderer', 'about.html'));
+  aboutWin.on('closed', () => { aboutWin = null; });
+}
+
 function setupTray() {
   try {
     const iconPath = path.join(__dirname, 'assets', 'icon.ico');
@@ -134,6 +147,8 @@ function setupTray() {
     tray.on('click', () => { if (mainWin) { mainWin.isVisible() ? mainWin.hide() : mainWin.show(); } });
     tray.setContextMenu(Menu.buildFromTemplate([
       { label: 'K-Tube 열기', click: () => mainWin?.show() },
+      { type: 'separator' },
+      { label: '프로그램 정보', click: () => openAboutWindow() },
       { type: 'separator' },
       { label: '종료', click: () => { app.isQuitting = true; app.quit(); } }
     ]));
@@ -152,7 +167,7 @@ function setupAutoUpdater() {
 ipcMain.handle('get-config', () => loadConfig());
 ipcMain.handle('save-config', (_, cfg) => { saveConfig(cfg); return true; });
 ipcMain.handle('minimize', () => mainWin?.minimize());
-ipcMain.handle('close-app', () => { app.isQuitting = true; app.quit(); });
+ipcMain.handle('close-app', () => { mainWin?.hide(); });
 ipcMain.handle('toggle-always-on-top', () => {
   if (!mainWin) return;
   const v = !mainWin.isAlwaysOnTop();

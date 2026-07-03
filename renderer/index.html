@@ -225,8 +225,8 @@ td.r { text-align: right; }
   display: flex; align-items: center; justify-content: center; z-index: 10;
 }
 .side-player-wrap { position: relative; flex: 1; min-height: 0; background: #000; }
-.side-player-wrap > div { width: 100%; height: 100%; }
-.side-panel iframe { width: 100%; height: 100%; display: block; border: none; background: #000; }
+.side-player-wrap > div { position: relative; width: 100%; height: 100%; }
+.side-panel iframe { position: absolute !important; top: 0 !important; left: 0 !important; width: 100% !important; height: 100% !important; display: block; border: none; background: #000; }
 .side-yt-link {
   display: block; text-align: center; padding: 5px 8px; background: var(--bg3);
   color: var(--text2); font-size: 11px; text-decoration: none; transition: color 0.15s; flex-shrink: 0;
@@ -379,6 +379,21 @@ td.r { text-align: right; }
 .spinner { width: 32px; height: 32px; border: 3px solid var(--border); border-top-color: var(--red); border-radius: 50%; animation: spin 0.8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 .load-msg { font-size: 14px; color: var(--text2); font-weight: 500; }
+/* ── Update bar ── */
+#updateBar { display: none; align-items: center; gap: 10px; padding: 7px 16px; background: #1a3a1a; border-bottom: 1px solid #2d6a2d; flex-shrink: 0; font-size: 13px; color: #7ec87e; }
+#updateBar.show { display: flex; }
+#updateBar .upd-msg { flex: 1; }
+#updateBar button { background: #2d6a2d; border: none; border-radius: 6px; padding: 4px 12px; color: #b8f0b8; font-size: 12px; cursor: pointer; font-family: inherit; }
+#updateBar button:hover { background: #3d8a3d; }
+#updateBar .upd-install { background: #3a8a3a; color: #fff; font-weight: 600; }
+/* ── Update notes modal ── */
+#updateNotesModal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 500; align-items: center; justify-content: center; }
+#updateNotesModal.open { display: flex; }
+#updateNotesModal .upd-box { background: var(--bg2); border: 1px solid var(--border); border-radius: 14px; padding: 24px; width: 360px; max-width: 92vw; }
+#updateNotesModal h3 { font-size: 15px; font-weight: 700; margin-bottom: 12px; color: var(--text); }
+#updateNotesModal ul { padding-left: 18px; font-size: 13px; color: var(--text2); line-height: 1.8; margin-bottom: 18px; }
+#updateNotesModal .upd-close { float: right; background: var(--bg3); border: none; border-radius: 6px; padding: 5px 14px; color: var(--text2); font-size: 13px; cursor: pointer; font-family: inherit; }
+#updateNotesModal .upd-close:hover { color: var(--text); }
 </style>
 </head>
 <body>
@@ -448,6 +463,25 @@ td.r { text-align: right; }
       <button class="win-btn" onclick="window.api?.minimize()" title="최소화">─</button>
       <button class="win-btn close" onclick="window.api?.closeApp()" title="닫기">✕</button>
     </div>
+  </div>
+</div>
+
+<!-- Update bar -->
+<div id="updateBar">
+  <span class="upd-msg">🎉 새 버전 업데이트가 준비됐어요.</span>
+  <button onclick="document.getElementById('updateNotesModal').classList.add('open')">업데이트 내역</button>
+  <button class="upd-install" onclick="window.api?.installUpdate?.()">지금 재시작</button>
+</div>
+
+<!-- Update notes modal -->
+<div id="updateNotesModal">
+  <div class="upd-box">
+    <h3>📦 v1.0.3 업데이트 내역</h3>
+    <ul>
+      <li>트레이 우클릭 → 프로그램 정보 기능 추가</li>
+      <li>X 버튼 클릭 시 시스템 트레이로 최소화 (종료 아님)</li>
+    </ul>
+    <button class="upd-close" onclick="document.getElementById('updateNotesModal').classList.remove('open')">닫기</button>
   </div>
 </div>
 
@@ -571,29 +605,26 @@ function startYTPlayer(videoId, embeddable) {
   if (!embeddable) { window.open(`https://youtu.be/${videoId}`, '_blank'); return; }
   const saved = parseInt(localStorage.getItem('ktube_pos_' + videoId) || '0');
   const container = document.getElementById('ytPlayerContainer');
-  container.innerHTML = '<div id="yt-inner"></div>';
   clearInterval(ytSaveInterval);
   if (ytPlayer) { try { ytPlayer.destroy(); } catch(e){} ytPlayer = null; }
   if (ytResizeObserver) { ytResizeObserver.disconnect(); ytResizeObserver = null; }
   ytCurrentVideoId = videoId;
   window.api?.setVideoMode?.(true);
-  // 패널이 열린 후 호출되므로 실제 픽셀 크기를 읽어서 전달
-  const initW = container.offsetWidth || 640;
-  const initH = container.offsetHeight || 480;
-  ytPlayer = new YT.Player('yt-inner', {
-    width: initW, height: initH, videoId,
-    playerVars: { autoplay: 1, start: Math.floor(saved), rel: 0 },
+  // iframe을 직접 생성 — YouTube API가 width/height 인라인 스타일을 덮어쓰지 못하게 함
+  const iframe = document.createElement('iframe');
+  iframe.id = 'yt-inner';
+  iframe.setAttribute('allowfullscreen', '');
+  iframe.setAttribute('allow', 'autoplay; encrypted-media; picture-in-picture');
+  iframe.src = `https://www.youtube.com/embed/${videoId}?autoplay=1&start=${Math.floor(saved)}&rel=0&enablejsapi=1&origin=${encodeURIComponent(location.origin)}`;
+  container.innerHTML = '';
+  container.appendChild(iframe);
+  // YouTube API가 iframe에 inline style을 설정하면 즉시 제거 → CSS !important가 크기 제어
+  const mo = new MutationObserver(() => { if (iframe.hasAttribute('style')) iframe.removeAttribute('style'); });
+  mo.observe(iframe, { attributes: true, attributeFilter: ['style'] });
+  ytResizeObserver = mo;
+  ytPlayer = new YT.Player(iframe, {
     events: {
       onReady() {
-        // 컨테이너 크기 변화 시 플레이어 자동 리사이즈
-        const wrap = document.getElementById('ytPlayerContainer');
-        if (wrap && window.ResizeObserver) {
-          ytResizeObserver = new ResizeObserver(() => {
-            if (ytPlayer && ytPlayer.setSize && wrap.offsetWidth > 0)
-              ytPlayer.setSize(wrap.offsetWidth, wrap.offsetHeight);
-          });
-          ytResizeObserver.observe(wrap);
-        }
         ytSaveInterval = setInterval(() => {
           if (!ytPlayer || !ytCurrentVideoId) return;
           try {
@@ -745,6 +776,10 @@ window.api?.onKeyArrow?.((key) => {
     else if (key === 'ArrowLeft') { const t = Math.max(0, ytPlayer.getCurrentTime() - 10); ytPlayer.seekTo(t, true); }
     else if (key === 'ArrowRight') { ytPlayer.seekTo(ytPlayer.getCurrentTime() + 10, true); }
   } catch(e) {}
+});
+
+window.api?.onUpdateDownloaded?.(() => {
+  document.getElementById('updateBar').classList.add('show');
 });
 
 window.api?.onShowChannel?.(() => {
