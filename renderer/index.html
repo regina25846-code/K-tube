@@ -218,7 +218,7 @@ td.r { text-align: right; }
   width: 0; flex-shrink: 0; background: var(--bg2); border-left: 1px solid var(--border);
   transition: width 0.25s ease; overflow: hidden; display: flex; flex-direction: column;
 }
-.side-panel.open { width: 50%; min-width: 28%; }
+.side-panel.open { width: 50%; min-width: 360px; }
 .side-close {
   position: absolute; top: 8px; right: 8px; background: rgba(0,0,0,0.65); border: none;
   border-radius: 50%; width: 28px; height: 28px; color: #fff; font-size: 14px; cursor: pointer;
@@ -236,9 +236,9 @@ td.r { text-align: right; }
 .side-title { font-size: 13px; font-weight: 700; color: var(--text); line-height: 1.4; margin-bottom: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .side-channel { font-size: 11px; color: var(--text); margin-bottom: 8px; cursor: pointer; }
 .side-channel:hover { text-decoration: underline; }
-.side-metrics { display: flex; gap: 6px; }
+.side-metrics { display: flex; gap: 6px; flex-wrap: wrap; }
 .side-metric {
-  flex: 1; display: flex; flex-direction: column; align-items: center;
+  flex: 1; min-width: 90px; display: flex; flex-direction: column; align-items: center;
   background: var(--bg3); border-radius: 8px; padding: 8px 6px; text-align: center;
 }
 .sm-label { font-size: 10px; color: var(--text2); margin-bottom: 3px; }
@@ -250,7 +250,7 @@ td.r { text-align: right; }
   width: 4px; background: var(--border); cursor: col-resize; flex-shrink: 0;
   display: none; transition: background 0.15s; position: relative;
 }
-.divider::after { content: ''; position: absolute; inset: 0 -4px; }
+.divider::after { content: ''; position: absolute; inset: 0 -10px; }
 .divider:hover, .divider.dragging { background: var(--red); }
 
 /* ── Favorites panel ── */
@@ -476,10 +476,11 @@ td.r { text-align: right; }
 <!-- Update notes modal -->
 <div id="updateNotesModal">
   <div class="upd-box">
-    <h3>📦 v1.0.3 업데이트 내역</h3>
+    <h3>📦 v1.0.4 업데이트 내역</h3>
     <ul>
-      <li>트레이 우클릭 → 프로그램 정보 기능 추가</li>
-      <li>X 버튼 클릭 시 시스템 트레이로 최소화 (종료 아님)</li>
+      <li>가운데 구분선 드래그 개선 — YouTube 영상 영역 위쪽에서도 정상 작동</li>
+      <li>영상 패널 최소 너비 고정 — 좁혀도 영상·정보 잘림 없음</li>
+      <li>메트릭 카드 좁은 화면 대응 — 2줄 자동 전환</li>
     </ul>
     <button class="upd-close" onclick="document.getElementById('updateNotesModal').classList.remove('open')">닫기</button>
   </div>
@@ -1495,22 +1496,27 @@ function showEmpty(msg) {
     dragging = true; startX = e.clientX; startTW = tp.offsetWidth; startSW = sp.offsetWidth;
     sp.style.transition = 'none'; divider.classList.add('dragging');
     document.body.style.cursor = 'col-resize'; document.body.style.userSelect = 'none';
-    document.querySelectorAll('iframe').forEach(f => f.style.pointerEvents = 'none');
+    const ov = document.createElement('div');
+    ov.id = 'drag-overlay'; ov.style.cssText = 'position:fixed;inset:0;z-index:9999;cursor:col-resize;';
+    document.body.appendChild(ov);
     e.preventDefault();
   });
   document.addEventListener('mousemove', e => {
     if (!dragging) return;
     const dx = e.clientX - startX;
     const tp = document.getElementById('tablePanel'), sp = document.getElementById('sidePanel');
-    tp.style.flex = 'none'; tp.style.width = Math.max(280, startTW+dx) + 'px'; sp.style.width = Math.max(240, startSW-dx) + 'px';
+    const mainW = tp.parentElement.offsetWidth;
+    const newTW = Math.min(Math.max(280, startTW+dx), mainW - 364);
+    const newSW = mainW - newTW - 4;
+    tp.style.flex = 'none'; tp.style.width = newTW + 'px'; sp.style.width = Math.max(360, newSW) + 'px';
   });
   document.addEventListener('mouseup', () => {
     if (!dragging) return;
     dragging = false; divider.classList.remove('dragging');
     document.body.style.cursor = ''; document.body.style.userSelect = '';
+    const ov = document.getElementById('drag-overlay'); if (ov) ov.remove();
     const sp = document.getElementById('sidePanel');
     sp.style.transition = '';
-    document.querySelectorAll('iframe').forEach(f => f.style.pointerEvents = '');
     const tp = document.getElementById('tablePanel');
     if (tp.style.width) {
       const mainW = tp.parentElement.offsetWidth;
