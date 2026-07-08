@@ -484,10 +484,10 @@ td.r { text-align: right; }
 <!-- Update notes modal -->
 <div id="updateNotesModal">
   <div class="upd-box">
-    <h3>📦 v1.0.6 업데이트 내역</h3>
+    <h3>📦 v1.0.7 업데이트 내역</h3>
     <ul>
-      <li>K-Zone 등 외부 프로그램이 창 크기를 바꿀 때 영상 오른쪽에 검은 여백 생기던 문제 수정</li>
-      <li>컨테이너 크기 변화를 실시간 감시해서 유튜브 플레이어 내부 크기 자동 동기화</li>
+      <li>DPI 배율이 다른 모니터 간 이동처럼 창 크기가 여러 단계로 바뀌는 경우 영상 여백이 재발하던 문제 추가 수정</li>
+      <li>마지막 크기 변경 후 0.3초 뒤 최종 크기로 한 번 더 재확인하는 안전장치 추가</li>
     </ul>
     <button class="upd-close" onclick="document.getElementById('updateNotesModal').classList.remove('open')">닫기</button>
   </div>
@@ -607,6 +607,21 @@ let ytSizeObserver = null;
   tag.src = 'https://www.youtube.com/iframe_api';
   document.head.appendChild(tag);
 })();
+
+// K-Zone처럼 외부에서 창을 다른 모니터로 옮기면(특히 DPI 배율이 다른 모니터 간 이동 시)
+// 창 크기가 한 번에 정착하지 않고 여러 단계로 바뀔 수 있어, ResizeObserver가 잡은
+// 첫 크기가 최종 크기와 다를 수 있음 → 마지막 resize 이후 한 번 더 지연 재확인
+let ytResizeSettleTimer = null;
+window.addEventListener('resize', () => {
+  if (!ytPlayer || !ytPlayer.setSize) return;
+  clearTimeout(ytResizeSettleTimer);
+  ytResizeSettleTimer = setTimeout(() => {
+    const c = document.getElementById('ytPlayerContainer');
+    if (!c || !ytPlayer || !ytPlayer.setSize) return;
+    const w = c.offsetWidth, h = c.offsetHeight;
+    if (w > 0 && h > 0) ytPlayer.setSize(w, h);
+  }, 300);
+});
 
 function onYouTubeIframeAPIReady() {}
 
