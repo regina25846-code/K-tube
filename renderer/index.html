@@ -163,6 +163,8 @@ body { background: var(--bg); color: var(--text); font-family: 'Pretendard','KoP
 .search-card-title { font-size: 14px; font-weight: 500; color: var(--text); line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; margin-bottom: 4px; }
 .search-card-channel { font-size: 12px; color: var(--text2); }
 .search-card-meta { font-size: 11px; color: var(--text3); margin-top: 2px; }
+.search-card.active { box-shadow: 0 0 0 2px var(--blue); border-radius: 8px; }
+.search-card.active .search-card-info { background: rgba(74,158,255,0.10); border-radius: 0 0 8px 8px; }
 .table-panel::-webkit-scrollbar { width: 6px; }
 .table-panel::-webkit-scrollbar-track { background: transparent; }
 .table-panel::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
@@ -182,7 +184,13 @@ thead th.sort-active { color: var(--text); }
 .sort-arrow.inactive { opacity: 0.25; }
 tbody tr { border-bottom: 1px solid var(--border); cursor: pointer; transition: background 0.1s; }
 tbody tr:hover { background: var(--bg2); }
-tbody tr.active { background: rgba(255,68,68,0.06); }
+tbody tr.active { background: rgba(74,158,255,0.14); box-shadow: inset 3px 0 0 var(--blue); }
+tr.active .thumb-wrap::before,
+.search-card.active .search-card-thumb-wrap::before {
+  content: '▶ 재생중'; position: absolute; top: 4px; left: 4px;
+  background: var(--blue); color: #fff; font-size: 10px; font-weight: 800;
+  padding: 2px 6px; border-radius: 4px; z-index: 2; letter-spacing: -0.2px;
+}
 td { padding: 8px 6px; vertical-align: middle; }
 td.r { text-align: right; }
 
@@ -476,11 +484,11 @@ td.r { text-align: right; }
 <!-- Update notes modal -->
 <div id="updateNotesModal">
   <div class="upd-box">
-    <h3>📦 v1.0.4 업데이트 내역</h3>
+    <h3>📦 v1.0.5 업데이트 내역</h3>
     <ul>
-      <li>가운데 구분선 드래그 개선 — YouTube 영상 영역 위쪽에서도 정상 작동</li>
-      <li>영상 패널 최소 너비 고정 — 좁혀도 영상·정보 잘림 없음</li>
-      <li>메트릭 카드 좁은 화면 대응 — 2줄 자동 전환</li>
+      <li>검색창에 유튜브 링크 붙여넣으면 검색 대신 바로 재생</li>
+      <li>재생중인 영상 강조 표시를 파란색 테두리+배지로 변경</li>
+      <li>검색 탭 카드형 목록에도 재생중 표시 추가</li>
     </ul>
     <button class="upd-close" onclick="document.getElementById('updateNotesModal').classList.remove('open')">닫기</button>
   </div>
@@ -506,7 +514,7 @@ td.r { text-align: right; }
 <!-- Search bar -->
 <div class="search-bar" id="searchBar" style="display:none">
   <div class="search-input-wrap">
-    <input class="search-input" id="q" placeholder="검색어 입력..." autocomplete="off">
+    <input class="search-input" id="q" placeholder="검색어 또는 유튜브 링크 입력..." autocomplete="off">
     <div class="history-dropdown" id="historyDropdown"></div>
   </div>
   <button class="search-btn" id="searchBtn" onclick="doSearch()">검색</button>
@@ -570,7 +578,7 @@ let homeResults = [];
 let searchResults = [];
 let playlistResults = [];
 let currentTab = 'home';
-let activeRow = null;
+let activePlayingId = null;
 let sortKey = 'score';
 let sortDir = 'desc';
 let homeActiveTopic = null;
@@ -693,6 +701,7 @@ async function updateSidePanelForVideo(videoId) {
     const vph = views / hoursAgo;
     ytCurrentChannelId = v.snippet.channelId;
     ytCurrentChannelName = v.snippet.channelTitle;
+    trackRecentPlay(videoId, v.snippet.title, v.snippet.channelTitle, v.snippet.thumbnails?.high?.url || v.snippet.thumbnails?.medium?.url || '');
     infoEl.innerHTML = `
       <div class="side-title">${escHtml(v.snippet.title)}</div>
       <div class="side-channel" onclick="openCurrentChannel()">${escHtml(v.snippet.channelTitle)} · ${fmtAge(pub)}</div>
@@ -758,6 +767,7 @@ document.getElementById('q').addEventListener('blur', () => { setTimeout(() => d
 document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeSide(); closeSettings(); closeFolderModal(); closePlaylistModal(); hideCtxMenu(); } });
 window.api?.onPlayVideo?.((videoId) => {
   ytCurrentVideoId = videoId;
+  markActivePlaying(videoId);
   document.getElementById('sidePanel').classList.add('open');
   document.getElementById('divider').style.display = 'block';
   startYTPlayer(videoId, true);
@@ -798,6 +808,7 @@ function navigateVideo(dir) {
   if (next < 0 || next >= list.length) return;
   const r = list[next];
   ytCurrentVideoId = r.videoId;
+  markActivePlaying(r.videoId);
   startYTPlayer(r.videoId, r.embeddable !== false);
   updateSidePanelForVideo(r.videoId);
 }
@@ -1073,10 +1084,38 @@ async function loadHome() {
 }
 
 // ── Search ──
+// ── YouTube URL 직접 재생 ──
+function parseYouTubeVideoId(str) {
+  const s = (str || '').trim();
+  if (!/youtu/i.test(s)) return null;
+  const patterns = [
+    /youtu\.be\/([a-zA-Z0-9_-]{11})/,
+    /[?&]v=([a-zA-Z0-9_-]{11})/,
+    /\/shorts\/([a-zA-Z0-9_-]{11})/,
+    /\/embed\/([a-zA-Z0-9_-]{11})/,
+    /\/live\/([a-zA-Z0-9_-]{11})/,
+  ];
+  for (const re of patterns) {
+    const m = s.match(re);
+    if (m) return m[1];
+  }
+  return null;
+}
+function playDirectUrl(videoId) {
+  document.getElementById('sidePanel').classList.add('open');
+  document.getElementById('divider').style.display = 'block';
+  ytCurrentVideoId = videoId;
+  markActivePlaying(videoId);
+  startYTPlayer(videoId, true);
+  updateSidePanelForVideo(videoId);
+}
+
 async function doSearch() {
   const q = document.getElementById('q').value.trim();
   if (!q || !API_KEYS.length) { if (!API_KEYS.length) openSettings(); return; }
   addToHistory(q);
+  const directId = parseYouTubeVideoId(q);
+  if (directId) { playDirectUrl(directId); return; }
   const btn = document.getElementById('searchBtn');
   btn.disabled = true; btn.textContent = '검색 중...';
   showLoading('검색 중...');
@@ -1106,7 +1145,7 @@ function renderSearchGrid(items) {
     const pct = (pos > 3 && r.dur > 0) ? Math.min(99, Math.round(pos/r.dur*100)) : 0;
     const durStr = r.dur > 0 ? fmtTime(r.dur) : '';
     const progBar = pct > 0 ? `<div class="thumb-progress" style="width:${pct}%;height:3px;border-radius:0 0 0 4px"></div>` : '';
-    return `<div class="search-card" onclick="openSearchVideo('${r.videoId}')" oncontextmenu="showCtxMenu(event,'${r.videoId}')">
+    return `<div class="search-card${r.videoId===activePlayingId?' active':''}" data-id="${r.videoId}" onclick="openSearchVideo('${r.videoId}')" oncontextmenu="showCtxMenu(event,'${r.videoId}')">
       <div class="search-card-thumb-wrap">
         <img class="search-card-thumb" src="${r.thumbnail}" loading="lazy">
         ${durStr ? `<div class="search-card-dur">${durStr}</div>` : ''}
@@ -1124,9 +1163,8 @@ function openSearchVideo(videoId) {
   document.getElementById('sidePanel').classList.add('open');
   document.getElementById('divider').style.display = 'block';
   ytCurrentVideoId = videoId;
+  markActivePlaying(videoId);
   startYTPlayer(videoId, true);
-  const r = searchResults.find(x => x.videoId === videoId);
-  if (r) trackRecentPlay(r.videoId, r.title, r.channel, r.thumbnail);
   updateSidePanelForVideo(videoId);
 }
 
@@ -1173,7 +1211,7 @@ function renderTable(results) {
     const pos = parseInt(localStorage.getItem('ktube_pos_' + r.videoId) || '0');
     const dur = parseInt(localStorage.getItem('ktube_dur_' + r.videoId) || '0');
     const pct = (pos > 3 && dur > 0) ? Math.min(99, Math.round(pos / dur * 100)) : 0;
-    html += `<tr data-id="${r.videoId}" onclick="selectRow(this,'${r.videoId}')" oncontextmenu="showCtxMenu(event,'${r.videoId}')">
+    html += `<tr data-id="${r.videoId}" class="${r.videoId===activePlayingId?'active':''}" onclick="selectRow('${r.videoId}')" oncontextmenu="showCtxMenu(event,'${r.videoId}')">
       <td><div class="video-cell"><div class="thumb-wrap"><img class="thumb-sm" src="${r.thumbnail}" loading="lazy">${pct > 0 ? `<div class="thumb-progress" style="width:${pct}%"></div>` : ''}</div>
         <div class="video-info">
           <div class="video-title">${escHtml(r.title)}</div>
@@ -1192,9 +1230,18 @@ function renderTable(results) {
 }
 
 // ── Side panel ──
-function selectRow(tr, videoId) {
-  if (activeRow) activeRow.classList.remove('active');
-  tr.classList.add('active'); activeRow = tr;
+function markActivePlaying(videoId) {
+  activePlayingId = videoId;
+  document.querySelectorAll('tr.active, .search-card.active').forEach(el => el.classList.remove('active'));
+  document.querySelector(`tr[data-id="${videoId}"]`)?.classList.add('active');
+  document.querySelector(`.search-card[data-id="${videoId}"]`)?.classList.add('active');
+}
+function clearActivePlaying() {
+  activePlayingId = null;
+  document.querySelectorAll('tr.active, .search-card.active').forEach(el => el.classList.remove('active'));
+}
+function selectRow(videoId) {
+  markActivePlaying(videoId);
   const r = currentResults.find(x => x.videoId === videoId);
   if (!r) return;
   const link = document.getElementById('sideYtLink');
@@ -1233,7 +1280,7 @@ function closeSide() {
   const sp = document.getElementById('sidePanel'), tp = document.getElementById('tablePanel');
   sp.classList.remove('open'); sp.style.width=''; tp.style.flex=''; tp.style.width='';
   document.getElementById('divider').style.display = 'none';
-  if (activeRow) { activeRow.classList.remove('active'); activeRow = null; }
+  clearActivePlaying();
 }
 function fmtTime(s) { const m=Math.floor(s/60),sec=s%60; return `${m}:${String(sec).padStart(2,'0')}`; }
 
@@ -1257,6 +1304,7 @@ function openFavVideo(videoId) {
   document.getElementById('sidePanel').classList.add('open');
   document.getElementById('divider').style.display = 'block';
   ytCurrentVideoId = videoId;
+  markActivePlaying(videoId);
   startYTPlayer(videoId, true);
   updateSidePanelForVideo(videoId);
 }
@@ -1448,11 +1496,7 @@ async function loadPlaylist(playlistId, playlistTitle) {
     playlistSortMode = 'default';
     panel.insertAdjacentHTML('afterbegin', `<div id="playlistCtrlBar" style="display:flex;gap:8px;padding:8px 12px;border-bottom:1px solid var(--border)"><button class="filter-chip" onclick="shufflePlaylist()">🔀 랜덤 재생</button><button class="filter-chip" id="playlistSortBtn" onclick="cyclePlaylistSort()">📅 목록순</button></div>`);
     updateQueueBadge();
-    if (playlistQueue.length) {
-      const first = playlistQueue[0];
-      const tr = document.querySelector(`tr[data-id="${first.videoId}"]`);
-      if (tr) selectRow(tr, first.videoId);
-    }
+    if (playlistQueue.length) selectRow(playlistQueue[0].videoId);
   } catch(e) { showEmpty('오류: ' + e.message); }
 }
 
@@ -1465,8 +1509,7 @@ function playQueueItem(idx) {
   startYTPlayer(item.videoId, item.embeddable !== false);
   updateSidePanelForVideo(item.videoId);
   updateQueueBadge();
-  const tr = document.querySelector(`tr[data-id="${item.videoId}"]`);
-  if (tr) { if (activeRow) activeRow.classList.remove('active'); tr.classList.add('active'); activeRow = tr; }
+  markActivePlaying(item.videoId);
 }
 function stopQueue() {
   playlistQueue = []; playlistQueueIdx = -1;
