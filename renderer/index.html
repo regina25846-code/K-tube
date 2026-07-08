@@ -484,10 +484,11 @@ td.r { text-align: right; }
 <!-- Update notes modal -->
 <div id="updateNotesModal">
   <div class="upd-box">
-    <h3>📦 v1.0.7 업데이트 내역</h3>
+    <h3>📦 v1.0.8 업데이트 내역</h3>
     <ul>
-      <li>DPI 배율이 다른 모니터 간 이동처럼 창 크기가 여러 단계로 바뀌는 경우 영상 여백이 재발하던 문제 추가 수정</li>
-      <li>마지막 크기 변경 후 0.3초 뒤 최종 크기로 한 번 더 재확인하는 안전장치 추가</li>
+      <li>구분선 드래그 직후 다른 모니터로 창을 옮기면 영상 오른쪽에 여백 생기던 버그 근본 수정</li>
+      <li>설치 시 K-Tube가 실행 중이면 자동 종료 후 설치 진행</li>
+      <li>설치 완료 후 자동 실행</li>
     </ul>
     <button class="upd-close" onclick="document.getElementById('updateNotesModal').classList.remove('open')">닫기</button>
   </div>
@@ -1592,6 +1593,10 @@ function showEmpty(msg) {
       const twPct = (tp.offsetWidth / mainW * 100).toFixed(1) + '%';
       const swPct = (sp.offsetWidth / mainW * 100).toFixed(1) + '%';
       setConfig({ dividerTableWidth: twPct, dividerSideWidth: swPct });
+      // 드래그 중엔 px 고정값이라 창이 외부(K-Zone 등)에서 리사이즈돼도 안 늘어남.
+      // 드래그가 끝나는 순간 % 단위로 다시 적용해서 반응형으로 되돌림
+      tp.style.width = twPct;
+      sp.style.width = swPct;
     }
     if (typeof ytPlayer !== 'undefined' && ytPlayer && ytPlayer.setSize) {
       const wrap = document.getElementById('ytPlayerContainer');

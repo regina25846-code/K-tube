@@ -1,6 +1,6 @@
 {
   "name": "kris-tube",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "description": "K-Tube — YouTube 알고리즘 영상 분석기",
   "main": "main.js",
   "scripts": {
@@ -36,7 +36,8 @@
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": false,
-      "runAfterFinish": false
+      "runAfterFinish": true,
+      "include": "build/installer.nsh"
     },
     "portable": {
       "artifactName": "K-Tube-${version}-portable.exe"
