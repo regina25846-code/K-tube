@@ -484,11 +484,10 @@ td.r { text-align: right; }
 <!-- Update notes modal -->
 <div id="updateNotesModal">
   <div class="upd-box">
-    <h3>📦 v1.0.5 업데이트 내역</h3>
+    <h3>📦 v1.0.6 업데이트 내역</h3>
     <ul>
-      <li>검색창에 유튜브 링크 붙여넣으면 검색 대신 바로 재생</li>
-      <li>재생중인 영상 강조 표시를 파란색 테두리+배지로 변경</li>
-      <li>검색 탭 카드형 목록에도 재생중 표시 추가</li>
+      <li>K-Zone 등 외부 프로그램이 창 크기를 바꿀 때 영상 오른쪽에 검은 여백 생기던 문제 수정</li>
+      <li>컨테이너 크기 변화를 실시간 감시해서 유튜브 플레이어 내부 크기 자동 동기화</li>
     </ul>
     <button class="upd-close" onclick="document.getElementById('updateNotesModal').classList.remove('open')">닫기</button>
   </div>
@@ -601,6 +600,7 @@ let ytCurrentVideoId = null;
 let ytCurrentChannelId = null;
 let ytCurrentChannelName = '';
 let ytResizeObserver = null;
+let ytSizeObserver = null;
 
 (function() {
   const tag = document.createElement('script');
@@ -617,6 +617,7 @@ function startYTPlayer(videoId, embeddable) {
   clearInterval(ytSaveInterval);
   if (ytPlayer) { try { ytPlayer.destroy(); } catch(e){} ytPlayer = null; }
   if (ytResizeObserver) { ytResizeObserver.disconnect(); ytResizeObserver = null; }
+  if (ytSizeObserver) { ytSizeObserver.disconnect(); ytSizeObserver = null; }
   ytCurrentVideoId = videoId;
   window.api?.setVideoMode?.(true);
   // iframe을 직접 생성 — YouTube API가 width/height 인라인 스타일을 덮어쓰지 못하게 함
@@ -634,6 +635,15 @@ function startYTPlayer(videoId, embeddable) {
   ytPlayer = new YT.Player(iframe, {
     events: {
       onReady() {
+        // K-Zone 등 외부 프로그램이 창 크기를 바꾸는 경우 divider mouseup 핸들러가 안 불려서
+        // 유튜브 플레이어 내부 렌더 크기가 컨테이너와 안 맞게 됨 → 컨테이너 크기 변화를 직접 감시해서 동기화
+        const ro = new ResizeObserver(() => {
+          if (!ytPlayer || !ytPlayer.setSize) return;
+          const w = container.offsetWidth, h = container.offsetHeight;
+          if (w > 0 && h > 0) ytPlayer.setSize(w, h);
+        });
+        ro.observe(container);
+        ytSizeObserver = ro;
         ytSaveInterval = setInterval(() => {
           if (!ytPlayer || !ytCurrentVideoId) return;
           try {
@@ -714,6 +724,7 @@ async function updateSidePanelForVideo(videoId) {
 
 function stopYTPlayer() {
   clearInterval(ytSaveInterval);
+  if (ytSizeObserver) { ytSizeObserver.disconnect(); ytSizeObserver = null; }
   if (ytPlayer) {
     try { const t = ytPlayer.getCurrentTime(); if (ytCurrentVideoId && t > 3) localStorage.setItem('ktube_pos_' + ytCurrentVideoId, Math.floor(t)); ytPlayer.stopVideo(); } catch(e) {}
   }
