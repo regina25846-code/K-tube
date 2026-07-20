@@ -402,6 +402,29 @@ td.r { text-align: right; }
 #updateNotesModal ul { padding-left: 18px; font-size: 13px; color: var(--text2); line-height: 1.8; margin-bottom: 18px; }
 #updateNotesModal .upd-close { float: right; background: var(--bg3); border: none; border-radius: 6px; padding: 5px 14px; color: var(--text2); font-size: 13px; cursor: pointer; font-family: inherit; }
 #updateNotesModal .upd-close:hover { color: var(--text); }
+/* ── 우회 재생 커스텀 컨트롤(유튜브 자체 플레이어 UI 톤/배치를 그대로 따라감, 2026-07-21) ── */
+.kt-ctrls { position: absolute; left: 0; right: 0; bottom: 0; padding: 16px 12px 6px; background: linear-gradient(to top, rgba(0,0,0,.75), rgba(0,0,0,0)); opacity: 0; transition: opacity .15s; pointer-events: none; z-index: 5; font-family: "Roboto", Arial, sans-serif; }
+.kt-ctrls.show { opacity: 1; pointer-events: auto; }
+.kt-progress-wrap { padding: 0 0 2px; }
+.kt-seek { width: 100%; -webkit-appearance: none; height: 3px; border-radius: 2px; cursor: pointer; outline: none; margin: 0; display: block; transition: height .1s; }
+.kt-progress-wrap:hover .kt-seek { height: 5px; }
+.kt-seek::-webkit-slider-thumb { -webkit-appearance: none; width: 13px; height: 13px; border-radius: 50%; background: #ff0000; cursor: pointer; opacity: 0; transition: opacity .1s; }
+.kt-progress-wrap:hover .kt-seek::-webkit-slider-thumb { opacity: 1; }
+.kt-row { display: flex; align-items: center; gap: 2px; height: 36px; }
+.kt-btn { background: none; border: none; color: #fff; cursor: pointer; padding: 6px; line-height: 0; font-family: inherit; border-radius: 2px; display: flex; align-items: center; justify-content: center; opacity: .9; }
+.kt-btn svg { width: 22px; height: 22px; fill: currentColor; }
+.kt-btn:hover { opacity: 1; }
+.kt-vol-wrap { display: flex; align-items: center; }
+.kt-vol { width: 52px; flex-shrink: 0; margin-left: 2px; -webkit-appearance: none; height: 3px; background: rgba(255,255,255,.35); border-radius: 2px; outline: none; }
+.kt-vol::-webkit-slider-thumb { -webkit-appearance: none; width: 11px; height: 11px; border-radius: 50%; background: #fff; cursor: pointer; }
+.kt-time { color: #fff; font-size: 12.5px; font-variant-numeric: tabular-nums; white-space: nowrap; margin-left: 8px; opacity: .9; }
+.kt-spacer { flex: 1; }
+.kt-quality-wrap { position: relative; }
+.kt-quality-menu { display: none; position: absolute; bottom: 40px; right: 0; background: rgba(28,28,28,.95); border-radius: 6px; overflow: hidden; min-width: 84px; box-shadow: 0 4px 14px rgba(0,0,0,.5); }
+.kt-quality-menu.show { display: block; }
+.kt-quality-item { padding: 8px 16px; color: #eee; font-size: 13px; cursor: pointer; white-space: nowrap; text-align: center; }
+.kt-quality-item:hover { background: rgba(255,255,255,.15); }
+.kt-quality-item.active { color: #3ea6ff; font-weight: 600; }
 </style>
 </head>
 <body>
@@ -626,8 +649,85 @@ window.addEventListener('resize', () => {
 
 function onYouTubeIframeAPIReady() {}
 
+// startYTPlayer(임베드)와 startDirectStreamPlayer(우회)가 공통으로 쓰는 이벤트 핸들러 —
+// 둘 다 같은 ytPlayer 어댑터 인터페이스(getCurrentTime/getDuration/getVideoData 등)를
+// 제공하므로 로직을 하나로 합쳐서 중복/불일치를 없앰(2026-07-20)
+function ytHandleReady() {
+  const container = document.getElementById('ytPlayerContainer');
+  const ro = new ResizeObserver(() => {
+    if (!ytPlayer || !ytPlayer.setSize) return;
+    const w = container.offsetWidth, h = container.offsetHeight;
+    if (w > 0 && h > 0) ytPlayer.setSize(w, h);
+  });
+  ro.observe(container);
+  ytSizeObserver = ro;
+  ytSaveInterval = setInterval(() => {
+    if (!ytPlayer || !ytCurrentVideoId) return;
+    try {
+      const t = ytPlayer.getCurrentTime();
+      const d = ytPlayer.getDuration();
+      if (t > 3) {
+        localStorage.setItem('ktube_pos_' + ytCurrentVideoId, Math.floor(t));
+        if (d > 0) localStorage.setItem('ktube_dur_' + ytCurrentVideoId, Math.floor(d));
+        const pct = Math.min(99, Math.round(t / d * 100));
+        const wrap = document.querySelector(`tr[data-id="${ytCurrentVideoId}"] .thumb-wrap`);
+        if (wrap) {
+          let bar = wrap.querySelector('.thumb-progress');
+          if (!bar) { bar = document.createElement('div'); bar.className = 'thumb-progress'; wrap.appendChild(bar); }
+          bar.style.width = pct + '%';
+        }
+      }
+    } catch(e) {}
+  }, 5000);
+}
+
+function ytHandleStateChange(e) {
+  if (e.data === YT.PlayerState.ENDED) {
+    localStorage.removeItem('ktube_pos_' + ytCurrentVideoId);
+    localStorage.removeItem('ktube_dur_' + ytCurrentVideoId);
+    const wrap = document.querySelector(`tr[data-id="${ytCurrentVideoId}"] .thumb-wrap`);
+    if (wrap) { const bar = wrap.querySelector('.thumb-progress'); if (bar) bar.remove(); }
+    clearInterval(ytSaveInterval);
+    if (playlistQueue.length && playlistQueueIdx < playlistQueue.length - 1) {
+      playlistQueueIdx++;
+      playQueueItem(playlistQueueIdx);
+    } else if (playlistQueueIdx >= playlistQueue.length - 1 && playlistQueue.length) {
+      stopQueue();
+    }
+  }
+  if (e.data === YT.PlayerState.PLAYING) {
+    try {
+      const newId = ytPlayer.getVideoData()?.video_id;
+      if (newId && newId !== ytCurrentVideoId) {
+        ytCurrentVideoId = newId;
+        updateSidePanelForVideo(newId);
+      }
+    } catch(err) {}
+  }
+}
+
+// 임베드 재생 중 에러(150/101 등 소유자가 삽입 재생을 막은 경우)가 나면
+// 유튜브 아이프레임을 포기하고 원본 스트림 직접재생으로 전환(2026-07-20)
+function ytHandleError(videoId) {
+  return function() { startDirectStreamPlayer(videoId); };
+}
+
+// 영상 전환 시 이전 video/audio가 소리만 남아서 계속 재생되는 문제 대응 —
+// ytPlayer 참조 하나만 믿고 destroy()하는 대신, 컨테이너 안에 실제로 존재하는
+// video/audio 태그를 전부 찾아서 강제로 멈추고 src까지 비움. 크롬(Electron 내장)은
+// 재생 중인 미디어 엘리먼트를 DOM에서 떼어내도 GC 대상에서 보호하는 경우가 있어서
+// pause()만으로는 안 끊기는 경로가 있었던 걸로 추정 — 원인 특정 전까지 방어적으로 전부 정리(2026-07-21)
+function killAllMediaInContainer() {
+  const container = document.getElementById('ytPlayerContainer');
+  if (!container) return;
+  container.querySelectorAll('video, audio').forEach(el => {
+    try { el.pause(); el.muted = true; el.removeAttribute('src'); el.load(); } catch(e) {}
+  });
+}
+
 function startYTPlayer(videoId, embeddable) {
-  if (!embeddable) { window.open(`https://youtu.be/${videoId}`, '_blank'); return; }
+  killAllMediaInContainer();
+  if (!embeddable) { startDirectStreamPlayer(videoId); return; }
   const saved = parseInt(localStorage.getItem('ktube_pos_' + videoId) || '0');
   const container = document.getElementById('ytPlayerContainer');
   clearInterval(ytSaveInterval);
@@ -650,61 +750,252 @@ function startYTPlayer(videoId, embeddable) {
   ytResizeObserver = mo;
   ytPlayer = new YT.Player(iframe, {
     events: {
-      onReady() {
-        // K-Zone 등 외부 프로그램이 창 크기를 바꾸는 경우 divider mouseup 핸들러가 안 불려서
-        // 유튜브 플레이어 내부 렌더 크기가 컨테이너와 안 맞게 됨 → 컨테이너 크기 변화를 직접 감시해서 동기화
-        const ro = new ResizeObserver(() => {
-          if (!ytPlayer || !ytPlayer.setSize) return;
-          const w = container.offsetWidth, h = container.offsetHeight;
-          if (w > 0 && h > 0) ytPlayer.setSize(w, h);
-        });
-        ro.observe(container);
-        ytSizeObserver = ro;
-        ytSaveInterval = setInterval(() => {
-          if (!ytPlayer || !ytCurrentVideoId) return;
-          try {
-            const t = ytPlayer.getCurrentTime();
-            const d = ytPlayer.getDuration();
-            if (t > 3) {
-              localStorage.setItem('ktube_pos_' + ytCurrentVideoId, Math.floor(t));
-              if (d > 0) localStorage.setItem('ktube_dur_' + ytCurrentVideoId, Math.floor(d));
-              const pct = Math.min(99, Math.round(t / d * 100));
-              const wrap = document.querySelector(`tr[data-id="${ytCurrentVideoId}"] .thumb-wrap`);
-              if (wrap) {
-                let bar = wrap.querySelector('.thumb-progress');
-                if (!bar) { bar = document.createElement('div'); bar.className = 'thumb-progress'; wrap.appendChild(bar); }
-                bar.style.width = pct + '%';
-              }
-            }
-          } catch(e) {}
-        }, 5000);
-      },
-      onStateChange(e) {
-        if (e.data === YT.PlayerState.ENDED) {
-          localStorage.removeItem('ktube_pos_' + ytCurrentVideoId);
-          localStorage.removeItem('ktube_dur_' + ytCurrentVideoId);
-          const wrap = document.querySelector(`tr[data-id="${ytCurrentVideoId}"] .thumb-wrap`);
-          if (wrap) { const bar = wrap.querySelector('.thumb-progress'); if (bar) bar.remove(); }
-          clearInterval(ytSaveInterval);
-          if (playlistQueue.length && playlistQueueIdx < playlistQueue.length - 1) {
-            playlistQueueIdx++;
-            playQueueItem(playlistQueueIdx);
-          } else if (playlistQueueIdx >= playlistQueue.length - 1 && playlistQueue.length) {
-            stopQueue();
-          }
-        }
-        if (e.data === YT.PlayerState.PLAYING) {
-          try {
-            const newId = ytPlayer.getVideoData()?.video_id;
-            if (newId && newId !== ytCurrentVideoId) {
-              ytCurrentVideoId = newId;
-              updateSidePanelForVideo(newId);
-            }
-          } catch(err) {}
-        }
-      }
+      onReady: ytHandleReady,
+      onStateChange: ytHandleStateChange,
+      onError: ytHandleError(videoId)
     }
   });
+}
+
+// 임베드 차단 영상용 우회 재생 — yt-dlp로 원본 video/audio 스트림 주소를 직접 받아서
+// <video>+<audio> 태그로 재생(K-Music이 노래 재생할 때 쓰는 방식과 동일한 원리, 2026-07-20)
+// 브라우저 기본 video 컨트롤은 실제 소리가 나오는 audio 태그를 전혀 모르기 때문에
+// 뮤트/볼륨이 안 먹는 것처럼 보이는 문제가 있어서 커스텀 컨트롤로 교체, 화질도 yt-dlp가
+// 뽑아준 전체 목록 중 형이 직접 고를 수 있게 함(2026-07-21, 형 피드백)
+async function startDirectStreamPlayer(videoId) {
+  killAllMediaInContainer();
+  const saved = parseInt(localStorage.getItem('ktube_pos_' + videoId) || '0');
+  const container = document.getElementById('ytPlayerContainer');
+  clearInterval(ytSaveInterval);
+  if (ytPlayer) { try { ytPlayer.destroy(); } catch(e){} ytPlayer = null; }
+  if (ytResizeObserver) { ytResizeObserver.disconnect(); ytResizeObserver = null; }
+  if (ytSizeObserver) { ytSizeObserver.disconnect(); ytSizeObserver = null; }
+  ytCurrentVideoId = videoId;
+  window.api?.setVideoMode?.(true);
+  container.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;color:var(--text3,#888);font-size:14px;">불러오는 중...</div>';
+
+  const res = await window.api?.getDirectStream?.(videoId);
+  if (ytCurrentVideoId !== videoId) return; // 그 사이 다른 영상으로 넘어갔으면 중단
+  if (!res || !res.ok || !res.qualities || !res.qualities.length) {
+    container.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;color:var(--text3,#888);font-size:14px;text-align:center;padding:20px;">이 영상은 재생할 수 없어요.</div>';
+    return;
+  }
+
+  const video = document.createElement('video');
+  video.id = 'yt-inner-direct';
+  video.autoplay = true;
+  video.controls = false; // 기본 컨트롤 대신 아래 커스텀 컨트롤 사용
+  video.preload = 'auto';
+  video.style.width = '100%';
+  video.style.height = '100%';
+  video.style.background = '#000';
+  video.setAttribute('playsinline', '');
+
+  let audio = null;
+  if (res.audioUrl) {
+    video.muted = true; // 화면(영상)은 무음, 소리는 별도 오디오 엘리먼트로만 재생 — 화질 위해 영상/음성 스트림이 분리된 경우
+    audio = document.createElement('audio');
+    audio.src = res.audioUrl;
+    audio.style.display = 'none';
+  }
+
+  const prefKey = 'ktube_quality_pref';
+  const savedPref = parseInt(localStorage.getItem(prefKey) || '0');
+  let curQuality = res.qualities.find(q => q.height === savedPref) || res.qualities[0];
+  video.src = curQuality.url;
+
+  container.innerHTML = '';
+  container.appendChild(video);
+  if (audio) container.appendChild(audio);
+
+  // ── 커스텀 컨트롤 바 (유튜브 자체 플레이어 아이콘/배치 최대한 그대로, 2026-07-21) ──
+  const ICON_PLAY = '<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>';
+  const ICON_PAUSE = '<svg viewBox="0 0 24 24"><path d="M6 5h4v14H6zm8 0h4v14h-4z"/></svg>';
+  const ICON_VOL_HIGH = '<svg viewBox="0 0 24 24"><path d="M3 10v4h4l5 5V5L7 10H3z"/><path d="M14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77zM16.5 12c0-1.77-1-3.29-2.5-4.03v8.05c1.5-.73 2.5-2.25 2.5-4.02z"/></svg>';
+  const ICON_VOL_LOW = '<svg viewBox="0 0 24 24"><path d="M3 10v4h4l5 5V5l-5 5H3z"/><path d="M16.5 12c0-1.77-1-3.29-2.5-4.03v8.05c1.5-.73 2.5-2.25 2.5-4.02z"/></svg>';
+  const ICON_MUTE = '<svg viewBox="0 0 24 24"><path d="M3 10v4h4l5 5V5l-5 5H3z"/><path d="M19.48 12l2.5-2.5-1.41-1.41L18.07 10.6 15.56 8.1l-1.41 1.41L16.66 12l-2.51 2.5 1.41 1.41 2.51-2.5 2.51 2.5 1.41-1.41z"/></svg>';
+  const ICON_FS_ENTER = '<svg viewBox="0 0 24 24"><path d="M7 14H5v5h5v-2H7v-3zM5 10h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/></svg>';
+  const ICON_FS_EXIT = '<svg viewBox="0 0 24 24"><path d="M5 16h3v3h2v-5H5v2zm3-8H5v2h5V5H8v3zm6 11h2v-3h3v-2h-5v5zm2-11V5h-2v5h5V8h-3z"/></svg>';
+  const ICON_GEAR = '<svg viewBox="0 0 24 24"><path d="M19.14 12.94a7.14 7.14 0 000-1.88l2.03-1.58a.5.5 0 00.12-.64l-1.92-3.32a.5.5 0 00-.6-.22l-2.39.96a7.03 7.03 0 00-1.62-.94l-.36-2.54a.5.5 0 00-.5-.42h-3.84a.5.5 0 00-.49.42l-.36 2.54c-.59.24-1.13.56-1.62.94l-2.39-.96a.5.5 0 00-.6.22L2.74 8.84a.5.5 0 00.12.64l2.03 1.58a7.14 7.14 0 000 1.88l-2.03 1.58a.5.5 0 00-.12.64l1.92 3.32c.12.22.37.29.6.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.25.42.49.42h3.84c.24 0 .45-.18.5-.42l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.23.08.48 0 .6-.22l1.92-3.32a.5.5 0 00-.12-.64l-2.03-1.58zM12 15.6a3.6 3.6 0 110-7.2 3.6 3.6 0 010 7.2z"/></svg>';
+  const ICON_SHARE = '<svg viewBox="0 0 24 24"><path d="M14 9V5l7 7-7 7v-4.1c-5 0-8.5 1.6-11 5.1 1-5 4-10 11-11z"/></svg>';
+  const ICON_CHECK = '<svg viewBox="0 0 24 24"><path d="M9 16.2L4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z"/></svg>';
+
+  const ctrls = document.createElement('div');
+  ctrls.className = 'kt-ctrls';
+  ctrls.innerHTML = `
+    <div class="kt-progress-wrap"><input type="range" class="kt-seek" min="0" max="1000" step="1" value="0"></div>
+    <div class="kt-row">
+      <button class="kt-btn kt-play">${ICON_PAUSE}</button>
+      <div class="kt-vol-wrap">
+        <button class="kt-btn kt-mute">${ICON_VOL_HIGH}</button>
+        <input type="range" class="kt-vol" min="0" max="100" value="100">
+      </div>
+      <span class="kt-time">0:00 / 0:00</span>
+      <div class="kt-spacer"></div>
+      <button class="kt-btn kt-share" title="공유(링크 복사)">${ICON_SHARE}</button>
+      <div class="kt-quality-wrap">
+        <button class="kt-btn kt-quality-btn" title="화질: ${curQuality.height}p">${ICON_GEAR}</button>
+        <div class="kt-quality-menu"></div>
+      </div>
+      <button class="kt-btn kt-fullscreen">${ICON_FS_ENTER}</button>
+    </div>`;
+  container.appendChild(ctrls);
+
+  const seekEl = ctrls.querySelector('.kt-seek');
+  const playBtn = ctrls.querySelector('.kt-play');
+  const muteBtn = ctrls.querySelector('.kt-mute');
+  const volEl = ctrls.querySelector('.kt-vol');
+  const timeEl = ctrls.querySelector('.kt-time');
+  const shareBtn = ctrls.querySelector('.kt-share');
+  const qualityBtn = ctrls.querySelector('.kt-quality-btn');
+  const qualityMenu = ctrls.querySelector('.kt-quality-menu');
+  const fsBtn = ctrls.querySelector('.kt-fullscreen');
+  const soundEl = () => audio || video; // 실제 소리를 담당하는 엘리먼트
+
+  let seeking = false;
+  let hideTimer = null;
+  const showCtrls = () => {
+    ctrls.classList.add('show');
+    clearTimeout(hideTimer);
+    hideTimer = setTimeout(() => { if (!video.paused) ctrls.classList.remove('show'); }, 2500);
+  };
+  container.addEventListener('mousemove', showCtrls);
+  container.addEventListener('mouseleave', () => { if (!video.paused) ctrls.classList.remove('show'); });
+  showCtrls();
+
+  const togglePlay = () => { video.paused ? video.play().catch(()=>{}) : video.pause(); };
+  playBtn.onclick = togglePlay;
+  video.addEventListener('click', togglePlay); // API 임베드처럼 화면 클릭으로도 재생/정지(2026-07-21, 형 피드백)
+  video.addEventListener('play', () => { playBtn.innerHTML = ICON_PAUSE; showCtrls(); });
+  video.addEventListener('pause', () => { playBtn.innerHTML = ICON_PLAY; ctrls.classList.add('show'); clearTimeout(hideTimer); });
+
+  video.addEventListener('timeupdate', () => {
+    if (seeking) return;
+    const d = video.duration || 0;
+    const pct = d > 0 ? (video.currentTime / d) * 100 : 0;
+    seekEl.value = Math.round(pct * 10);
+    seekEl.style.background = `linear-gradient(to right, #ff0000 ${pct}%, rgba(255,255,255,.3) ${pct}%)`;
+    timeEl.textContent = `${fmtTime(video.currentTime)} / ${fmtTime(d)}`;
+  });
+  seekEl.addEventListener('input', () => { seeking = true; });
+  seekEl.addEventListener('change', () => {
+    const d = video.duration || 0;
+    const t = (seekEl.value / 1000) * d;
+    video.currentTime = t;
+    if (audio) audio.currentTime = t;
+    seeking = false;
+  });
+
+  // 볼륨은 형이 맞춰두면 영상 바뀌어도 유지되도록 localStorage에 저장(2026-07-21, 형 피드백)
+  const volPrefKey = 'ktube_volume_pref';
+  const savedVolRaw = parseFloat(localStorage.getItem(volPrefKey));
+  const initialVol = isNaN(savedVolRaw) ? 1 : Math.max(0, Math.min(1, savedVolRaw));
+  const applyVolume = (v) => {
+    soundEl().volume = v;
+    volEl.value = Math.round(v * 100);
+    muteBtn.innerHTML = v === 0 ? ICON_MUTE : (v < 0.5 ? ICON_VOL_LOW : ICON_VOL_HIGH);
+  };
+  volEl.oninput = () => {
+    if (soundEl().muted) soundEl().muted = false;
+    const v = volEl.value / 100;
+    applyVolume(v);
+    localStorage.setItem(volPrefKey, v);
+  };
+  applyVolume(initialVol);
+  muteBtn.onclick = () => {
+    const el = soundEl();
+    el.muted = !el.muted;
+    muteBtn.innerHTML = el.muted ? ICON_MUTE : (el.volume < 0.5 ? ICON_VOL_LOW : ICON_VOL_HIGH);
+  };
+
+  // 공유 버튼 — API 경로엔 유튜브 자체 공유 버튼이 있는데 우회재생엔 없어서 추가(2026-07-21, 형 피드백)
+  // 재생 위치까지 담아서 링크 복사, 유튜브 공유창 대신 클립보드 복사+아이콘 체크로 확인
+  shareBtn.onclick = () => {
+    const t = Math.floor(video.currentTime);
+    const url = `https://youtu.be/${videoId}${t > 3 ? '?t=' + t : ''}`;
+    navigator.clipboard.writeText(url).then(() => {
+      shareBtn.innerHTML = ICON_CHECK;
+      setTimeout(() => { shareBtn.innerHTML = ICON_SHARE; }, 1400);
+    }).catch(() => {});
+  };
+
+  fsBtn.onclick = () => { document.fullscreenElement ? document.exitFullscreen() : container.requestFullscreen?.(); };
+  document.addEventListener('fullscreenchange', () => {
+    fsBtn.innerHTML = document.fullscreenElement ? ICON_FS_EXIT : ICON_FS_ENTER;
+  });
+
+  const renderQualityMenu = () => {
+    qualityMenu.innerHTML = res.qualities.map(q =>
+      `<div class="kt-quality-item${q.height === curQuality.height ? ' active' : ''}" data-h="${q.height}">${q.height}p</div>`
+    ).join('');
+    qualityBtn.title = '화질: ' + curQuality.height + 'p';
+    qualityMenu.querySelectorAll('.kt-quality-item').forEach(item => {
+      item.onclick = (e) => { e.stopPropagation(); switchQuality(parseInt(item.dataset.h)); };
+    });
+  };
+  const switchQuality = (height) => {
+    const q = res.qualities.find(x => x.height === height);
+    if (!q || q === curQuality) { qualityMenu.classList.remove('show'); return; }
+    curQuality = q;
+    localStorage.setItem(prefKey, height);
+    const wasPlaying = !video.paused;
+    const t = video.currentTime;
+    video.src = q.url;
+    video.addEventListener('loadedmetadata', function onLoaded() {
+      video.currentTime = t;
+      if (audio) audio.currentTime = t;
+      if (wasPlaying) video.play().catch(()=>{});
+      video.removeEventListener('loadedmetadata', onLoaded);
+    });
+    renderQualityMenu();
+    qualityMenu.classList.remove('show');
+  };
+  renderQualityMenu();
+  qualityBtn.onclick = (e) => { e.stopPropagation(); qualityMenu.classList.toggle('show'); };
+  const closeQualityMenu = (e) => { if (!ctrls.contains(e.target)) qualityMenu.classList.remove('show'); };
+  document.addEventListener('click', closeQualityMenu, true);
+
+  let resyncTimer = null;
+  const syncAudio = () => {
+    if (!audio) return;
+    if (Math.abs(audio.currentTime - video.currentTime) > 0.35) audio.currentTime = video.currentTime;
+  };
+  video.addEventListener('play', () => { if (audio) audio.play().catch(()=>{}); });
+  video.addEventListener('pause', () => { if (audio) audio.pause(); });
+  // 영상이 버퍼링으로 멈추면 음성도 같이 멈춰서 어긋나지 않게 함(2026-07-21)
+  video.addEventListener('waiting', () => { if (audio) audio.pause(); });
+  video.addEventListener('playing', () => { if (audio && video.paused === false) audio.play().catch(()=>{}); });
+  video.addEventListener('seeked', syncAudio);
+  if (audio) resyncTimer = setInterval(syncAudio, 2000);
+
+  video.addEventListener('loadedmetadata', () => {
+    if (saved > 0 && saved < (video.duration - 5)) {
+      video.currentTime = saved;
+      if (audio) audio.currentTime = saved;
+    }
+  }, { once: true });
+
+  video.addEventListener('playing', () => ytHandleStateChange({ data: YT.PlayerState.PLAYING }));
+  video.addEventListener('ended', () => ytHandleStateChange({ data: YT.PlayerState.ENDED }));
+
+  ytPlayer = {
+    getCurrentTime: () => video.currentTime || 0,
+    getDuration: () => video.duration || 0,
+    seekTo: (t) => { video.currentTime = t; if (audio) audio.currentTime = t; },
+    getVolume: () => Math.round(soundEl().volume * 100),
+    setVolume: (v) => { const vol = Math.max(0, Math.min(100, v)) / 100; soundEl().volume = vol; applyVolume(vol); },
+    getVideoData: () => ({ video_id: videoId, title: '', author: '' }),
+    stopVideo: () => { video.pause(); if (audio) audio.pause(); },
+    setSize: () => {}, // video 태그는 CSS 100%/100%로 이미 컨테이너에 맞춰짐, 별도 처리 불필요
+    destroy: () => {
+      // pause를 제일 먼저 — 아래 정리 코드에서 예외가 나도 소리는 반드시 멈추게(2026-07-21)
+      video.pause(); if (audio) audio.pause();
+      clearInterval(resyncTimer);
+      try { document.removeEventListener('click', closeQualityMenu, true); } catch(e) {}
+    }
+  };
+
+  ytHandleReady();
 }
 
 async function updateSidePanelForVideo(videoId) {
@@ -748,6 +1039,7 @@ function stopYTPlayer() {
   ytCurrentChannelId = null;
   ytCurrentChannelName = '';
   window.api?.setVideoMode?.(false);
+  killAllMediaInContainer();
   document.getElementById('ytPlayerContainer').innerHTML = '';
 }
 
@@ -792,6 +1084,15 @@ document.getElementById('q').addEventListener('keydown', e => { if (e.key === 'E
 document.getElementById('q').addEventListener('focus', () => { renderHistoryDropdown(); document.getElementById('historyDropdown').style.display = 'block'; });
 document.getElementById('q').addEventListener('blur', () => { setTimeout(() => document.getElementById('historyDropdown').style.display = 'none', 150); });
 document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeSide(); closeSettings(); closeFolderModal(); closePlaylistModal(); hideCtxMenu(); } });
+// 스페이스바로 재생/정지 — API(iframe) 경로는 유튜브 자체가 이미 처리하니 우회재생 <video>만 여기서 처리(2026-07-21, 형 피드백)
+document.addEventListener('keydown', e => {
+  if (e.code !== 'Space' && e.key !== ' ') return;
+  if (['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName)) return;
+  const directVideo = document.getElementById('yt-inner-direct');
+  if (!directVideo) return;
+  e.preventDefault();
+  directVideo.paused ? directVideo.play().catch(() => {}) : directVideo.pause();
+});
 window.api?.onPlayVideo?.((videoId) => {
   ytCurrentVideoId = videoId;
   markActivePlaying(videoId);
@@ -1309,7 +1610,12 @@ function closeSide() {
   document.getElementById('divider').style.display = 'none';
   clearActivePlaying();
 }
-function fmtTime(s) { const m=Math.floor(s/60),sec=s%60; return `${m}:${String(sec).padStart(2,'0')}`; }
+function fmtTime(s) {
+  s = Math.max(0, Math.floor(s || 0));
+  const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60;
+  if (h > 0) return `${h}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
+  return `${m}:${String(sec).padStart(2,'0')}`;
+}
 
 // ── Context menu ──
 function showCtxMenu(e, videoId) {

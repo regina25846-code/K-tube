@@ -13,4 +13,5 @@ contextBridge.exposeInMainWorld('api', {
   setVideoMode: (active) => ipcRenderer.invoke('set-video-mode', active),
   onKeyArrow: (cb) => ipcRenderer.on('key-arrow', (_, key) => cb(key)),
   onShowChannel: (cb) => ipcRenderer.on('show-channel', () => cb()),
+  getDirectStream: (videoId) => ipcRenderer.invoke('get-direct-stream', videoId),
 });

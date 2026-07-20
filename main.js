@@ -3,6 +3,68 @@ const { autoUpdater } = require('electron-updater');
 const path = require('path');
 const fs = require('fs');
 const http = require('http');
+const { execFile, execFileSync } = require('child_process');
+
+// yt-dlp 바이너리 경로 — K-Music과 동일한 탐색 패턴(2026-07-20)
+function getYtDlpPath() {
+  if (app.isPackaged) {
+    return path.join(process.resourcesPath, 'bin', 'yt-dlp.exe');
+  }
+  const candidates = [
+    '/opt/homebrew/bin/yt-dlp',
+    '/usr/local/bin/yt-dlp',
+    path.join(__dirname, 'bin', 'yt-dlp'),
+    'yt-dlp'
+  ];
+  for (const c of candidates) {
+    try { execFileSync(c, ['--version'], { timeout: 5000 }); return c; } catch {}
+  }
+  return 'yt-dlp';
+}
+
+function ytdlp(args) {
+  return new Promise((resolve, reject) => {
+    const bin = getYtDlpPath();
+    execFile(bin, args, { timeout: 30000, maxBuffer: 1024 * 1024 * 20 }, (err, stdout, stderr) => {
+      if (err) return reject(new Error(stderr || err.message));
+      resolve(stdout.trim());
+    });
+  });
+}
+
+// 임베드 차단된 영상용 — 유튜브 아이프레임 플레이어를 거치지 않고 원본 스트림 주소를 직접 받아서
+// K-Tube 내부 <video>/<audio> 태그로 재생하기 위함(2026-07-20, 형 요청으로 추가)
+// --dump-json 결과의 각 포맷 항목에 이미 서명 해제된 url이 들어있어서 -f 셀렉터로 한번 더
+// 호출할 필요 없음 — 화질 목록 전체 + 각 화질별 url을 한번에 뽑아서 프론트에서 즉시 전환 가능하게 함
+// (720p 강제 캡 제거 — 형이 직접 화질 선택하고 싶다고 해서 지원 화질 전부 넘김, 2026-07-21)
+async function getDirectStreamUrls(videoId) {
+  const ytUrl = `https://www.youtube.com/watch?v=${videoId}`;
+  const json = await ytdlp(['--no-playlist', '--dump-json', '--no-warnings', ytUrl]);
+  const info = JSON.parse(json);
+
+  const heights = {};
+  for (const f of info.formats || []) {
+    if (f.vcodec && f.vcodec !== 'none' && (!f.acodec || f.acodec === 'none') && f.height && f.url) {
+      const isAvc = f.vcodec.startsWith('avc1');
+      const cur = heights[f.height];
+      if (!cur || (isAvc && !cur.isAvc) || (isAvc === cur.isAvc && (f.tbr || 0) > (cur.tbr || 0))) {
+        heights[f.height] = { height: f.height, url: f.url, isAvc, tbr: f.tbr || 0 };
+      }
+    }
+  }
+  const qualities = Object.values(heights)
+    .sort((a, b) => b.height - a.height)
+    .map(q => ({ height: q.height, url: q.url }));
+
+  let bestAudio = null;
+  for (const f of info.formats || []) {
+    if (f.acodec && f.acodec !== 'none' && (!f.vcodec || f.vcodec === 'none') && f.url) {
+      if (!bestAudio || (f.abr || 0) > (bestAudio.abr || 0)) bestAudio = f;
+    }
+  }
+
+  return { qualities, audioUrl: bestAudio ? bestAudio.url : null, duration: info.duration };
+}
 
 const CONFIG_PATH = path.join(app.getPath('userData'), 'ktube_config.json');
 
@@ -177,6 +239,14 @@ ipcMain.handle('toggle-always-on-top', () => {
 });
 ipcMain.handle('install-update', () => autoUpdater.quitAndInstall());
 ipcMain.handle('set-video-mode', (_, active) => { videoActive = active; });
+ipcMain.handle('get-direct-stream', async (_, videoId) => {
+  try {
+    const data = await getDirectStreamUrls(videoId);
+    return { ok: true, ...data };
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
+});
 
 // ── App lifecycle ──
 const gotLock = app.requestSingleInstanceLock();
