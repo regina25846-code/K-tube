@@ -195,15 +195,17 @@ function openAboutWindow() {
     width: 320, height: 340,
     frame: false, resizable: false,
     alwaysOnTop: true, skipTaskbar: true,
-    webPreferences: { contextIsolation: true, nodeIntegration: false }
+    webPreferences: { contextIsolation: true, nodeIntegration: false, preload: path.join(__dirname, 'renderer', 'about-preload.js') }
   });
-  aboutWin.loadFile(path.join(__dirname, 'renderer', 'about.html'));
+  const cfg = loadConfig();
+  aboutWin.loadFile(path.join(__dirname, 'renderer', 'about.html'), { query: { theme: cfg.theme || 'dark' } });
   aboutWin.on('closed', () => { aboutWin = null; });
 }
 
 function setupTray() {
   try {
-    const iconPath = path.join(__dirname, 'assets', 'icon.ico');
+    const trayIconPath = path.join(__dirname, 'assets', 'icon_tray.png');
+    const iconPath = fs.existsSync(trayIconPath) ? trayIconPath : path.join(__dirname, 'assets', 'icon.ico');
     tray = new Tray(nativeImage.createFromPath(iconPath));
     tray.setToolTip('K-Tube');
     tray.on('click', () => { if (mainWin) { mainWin.isVisible() ? mainWin.hide() : mainWin.show(); } });
@@ -220,14 +222,33 @@ function setupTray() {
 function setupAutoUpdater() {
   autoUpdater.autoDownload = true;
   autoUpdater.autoInstallOnAppQuit = true;
-  autoUpdater.on('update-available', () => mainWin?.webContents.send('update-available'));
-  autoUpdater.on('update-downloaded', () => mainWin?.webContents.send('update-downloaded'));
+  const broadcast = (channel, arg) => {
+    mainWin?.webContents.send(channel, arg);
+    if (aboutWin && !aboutWin.isDestroyed()) aboutWin.webContents.send(channel, arg);
+  };
+  autoUpdater.on('update-available', () => broadcast('update-available'));
+  autoUpdater.on('update-downloaded', () => broadcast('update-downloaded'));
+  autoUpdater.on('update-not-available', () => broadcast('update-not-available'));
+  autoUpdater.on('error', (err) => broadcast('update-error', err?.message || String(err)));
   try { autoUpdater.checkForUpdates(); } catch(e) {}
 }
 
 // ── IPC ──
+ipcMain.handle('get-app-version', () => app.getVersion());
+ipcMain.handle('check-for-updates', () => {
+  if (!app.isPackaged) return 'dev';
+  autoUpdater.checkForUpdates();
+  return 'checking';
+});
+ipcMain.on('about-resize', (_, h) => {
+  if (aboutWin && !aboutWin.isDestroyed()) aboutWin.setContentSize(320, Math.round(h));
+});
 ipcMain.handle('get-config', () => loadConfig());
-ipcMain.handle('save-config', (_, cfg) => { saveConfig(cfg); return true; });
+ipcMain.handle('save-config', (_, cfg) => {
+  saveConfig(cfg);
+  if (aboutWin && !aboutWin.isDestroyed() && cfg.theme) aboutWin.webContents.send('theme-changed', cfg.theme);
+  return true;
+});
 ipcMain.handle('minimize', () => mainWin?.minimize());
 ipcMain.handle('close-app', () => { mainWin?.hide(); });
 ipcMain.handle('toggle-always-on-top', () => {
