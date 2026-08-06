@@ -14,4 +14,7 @@ contextBridge.exposeInMainWorld('api', {
   onKeyArrow: (cb) => ipcRenderer.on('key-arrow', (_, key) => cb(key)),
   onShowChannel: (cb) => ipcRenderer.on('show-channel', () => cb()),
   getDirectStream: (videoId) => ipcRenderer.invoke('get-direct-stream', videoId),
+  checkShorts: (videoIds) => ipcRenderer.invoke('check-shorts', videoIds),
+  onWindowMinimized: (cb) => ipcRenderer.on('window-minimized', () => cb()),
+  onWindowRestored: (cb) => ipcRenderer.on('window-restored', () => cb()),
 });

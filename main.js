@@ -4,6 +4,7 @@ const path = require('path');
 const fs = require('fs');
 const http = require('http');
 const { execFile, execFileSync } = require('child_process');
+const https = require('https');
 
 // yt-dlp 바이너리 경로 — K-Music과 동일한 탐색 패턴(2026-07-20)
 function getYtDlpPath() {
@@ -134,6 +135,9 @@ function createWindow() {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
+      // 최소화된 창의 렌더러를 절전 목적으로 스로틀하면 우회재생 <video> 디코딩이 멈추면서
+      // 버퍼링 방어 로직(waiting 이벤트)이 소리까지 같이 꺼버리는 문제가 있었음(2026-08-06)
+      backgroundThrottling: false,
     }
   });
 
@@ -152,6 +156,10 @@ function createWindow() {
   });
 
   mainWin.on('closed', () => { mainWin = null; });
+
+  // 백그라운드 재생 토글이 꺼져있을 때만 렌더러가 최소화/복원에 맞춰 직접 멈추고 재개함(2026-08-06)
+  mainWin.on('minimize', () => mainWin?.webContents.send('window-minimized'));
+  mainWin.on('restore', () => mainWin?.webContents.send('window-restored'));
 
   mainWin.webContents.setWindowOpenHandler(({ url }) => {
     const ytMatch = url.match(/youtube\.com\/watch\?(?:[^#]*&)?v=([a-zA-Z0-9_-]{11})|youtu\.be\/([a-zA-Z0-9_-]{11})/);
@@ -260,6 +268,31 @@ ipcMain.handle('toggle-always-on-top', () => {
 });
 ipcMain.handle('install-update', () => autoUpdater.quitAndInstall());
 ipcMain.handle('set-video-mode', (_, active) => { videoActive = active; });
+// 실제 쇼츠 판별(2026-08-06) — 유튜브 데이터API엔 "이게 쇼츠다" 필드가 없어서
+// videoDuration 파라미터(길이만 보는 근사치)로 걸러왔는데 일반 영상까지 오탐되던 문제.
+// youtube.com/shorts/<id>를 리다이렉트 없이 직접 요청하면 진짜 쇼츠는 200, 아니면 /watch로
+// 303 리다이렉트되는 걸 실측 확인(2026-08-06) — 이 응답 코드로 정확히 판별한다.
+function checkIsShort(videoId) {
+  return new Promise((resolve) => {
+    const req = https.request({
+      hostname: 'www.youtube.com',
+      path: `/shorts/${encodeURIComponent(videoId)}`,
+      method: 'HEAD',
+      timeout: 5000,
+    }, (res) => {
+      resolve(res.statusCode === 200);
+      res.resume();
+    });
+    req.on('error', () => resolve(null));   // 판별 실패 시 null(모름) — 필터에서 걸러내지 않고 통과시킴
+    req.on('timeout', () => { req.destroy(); resolve(null); });
+    req.end();
+  });
+}
+ipcMain.handle('check-shorts', async (_, videoIds) => {
+  const ids = [...new Set(videoIds || [])];
+  const entries = await Promise.all(ids.map(async (id) => [id, await checkIsShort(id)]));
+  return Object.fromEntries(entries);
+});
 ipcMain.handle('get-direct-stream', async (_, videoId) => {
   try {
     const data = await getDirectStreamUrls(videoId);

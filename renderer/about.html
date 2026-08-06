@@ -12,6 +12,15 @@
   --bg: #f0f0f0; --bg2: #ffffff; --bg3: #e8e8e8; --border: #cccccc;
   --text: #111111; --text2: #444444; --text3: #777777;
 }
+/* 스킨 4종 중 나머지 둘 — K-Music ambient/midnight 리터럴(2026-08-06) */
+[data-theme="ember"] {
+  --bg: #EBDFC6; --bg2: #E1D2B2; --bg3: #D9C7A3; --border: rgba(56,40,16,0.22);
+  --text: #372A18; --text2: #6B5636; --text3: #927A54;
+}
+[data-theme="midnight"] {
+  --bg: #241A11; --bg2: #1C130B; --bg3: #160F09; --border: rgba(255,220,150,0.10);
+  --text: #EAD6AE; --text2: #C0A574; --text3: #8C7548;
+}
 * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
 body { background: var(--bg); font-family: 'Segoe UI','맑은 고딕',sans-serif; width: 100%; display: flex; flex-direction: column; overflow: hidden; }
 .header { padding: 14px 16px; position: relative; text-align: center; border-bottom: 1px solid var(--border); flex-shrink: 0; -webkit-app-region: drag; }
