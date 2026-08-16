@@ -230,15 +230,37 @@ function setupTray() {
 function setupAutoUpdater() {
   autoUpdater.autoDownload = true;
   autoUpdater.autoInstallOnAppQuit = true;
+  // 테스트빌드(1.2.0-2 같은 하이픈숫자 버전) 설치 상태에서 "업데이트 확인" 누르면 실패하던 문제 —
+  // electron-updater는 버전에 하이픈(프리릴리즈)이 붙어있으면 allowPrerelease를 자동으로 true로
+  // 켜는데, 여기에 channel='latest'까지 같이 있으면 GitHubProvider.getLatestVersion()의 태그
+  // 매칭 로직이 정식 릴리즈(비-프리릴리즈 태그)를 절대 못 찾는 조합이 됨 — updater-error.log로
+  // 실측한 stack trace가 정확히 이 경로(GitHubProvider.js:111 tag==null)를 가리켜서 확정.
+  // channel 강제 대신 allowPrerelease=false로 프리릴리즈 자동감지 자체를 꺼서, 테스트빌드든
+  // 정식버전이든 항상 최신 정식 릴리즈를 찾는 기본 로직(getLatestTagName)을 타게 함(2026-08-06).
+  autoUpdater.allowPrerelease = false;
+  // "No published versions on GitHub" 에러가 서버는 멀쩡한데도 재현되는 문제 진단용 —
+  // K-Memo 때도 같은 에러로 헤맸는데 그땐 로그 파일이 없어서 원인을 확정 못 했음(레이트리밋 추정,
+  // 미검증). 다음엔 실측하려고 %APPDATA%/kris-tube/updater-error.log에 매 시도 기록(2026-08-06).
+  // ⚠️ 실제 폴더명은 kris-tube임(userData 내부 식별자가 아직 개명 전, 2026-08-16 확인 — project_kseries_kris_prefix_audit 참고)
+  const logUpdater = (msg) => {
+    try {
+      fs.appendFileSync(
+        path.join(app.getPath('userData'), 'updater-error.log'),
+        `[${new Date().toISOString()}] ${msg}\n`
+      );
+    } catch (e) {}
+  };
   const broadcast = (channel, arg) => {
     mainWin?.webContents.send(channel, arg);
     if (aboutWin && !aboutWin.isDestroyed()) aboutWin.webContents.send(channel, arg);
   };
-  autoUpdater.on('update-available', () => broadcast('update-available'));
-  autoUpdater.on('update-downloaded', () => broadcast('update-downloaded'));
-  autoUpdater.on('update-not-available', () => broadcast('update-not-available'));
-  autoUpdater.on('error', (err) => broadcast('update-error', err?.message || String(err)));
-  try { autoUpdater.checkForUpdates(); } catch(e) {}
+  logUpdater(`앱 시작, 현재 버전 ${app.getVersion()}, checkForUpdates 호출`);
+  autoUpdater.on('checking-for-update', () => logUpdater('checking-for-update 이벤트'));
+  autoUpdater.on('update-available', (info) => { logUpdater(`update-available: ${JSON.stringify(info)}`); broadcast('update-available'); });
+  autoUpdater.on('update-downloaded', () => { logUpdater('update-downloaded'); broadcast('update-downloaded'); });
+  autoUpdater.on('update-not-available', (info) => { logUpdater(`update-not-available: ${JSON.stringify(info)}`); broadcast('update-not-available'); });
+  autoUpdater.on('error', (err) => { logUpdater(`error 이벤트: ${err?.stack || err}`); broadcast('update-error', err?.message || String(err)); });
+  try { autoUpdater.checkForUpdates(); } catch(e) { logUpdater(`checkForUpdates 호출 자체 실패(catch): ${e?.stack || e}`); }
 }
 
 // ── IPC ──
