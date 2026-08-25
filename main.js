@@ -7,7 +7,43 @@ const { execFile, execFileSync } = require('child_process');
 const https = require('https');
 
 // yt-dlp 바이너리 경로 — K-Music과 동일한 탐색 패턴(2026-07-20)
+//
+// ── 오버라이드 통로(2026-08-18 신설, 임시 성격) ──────────────────────────────
+// K-Music main.js에 넣은 것과 글자 그대로 같은 구조다. 두 앱이 같은 yt-dlp.exe를 번들하고
+// 있어서(md5 동일) 같은 사고를 같이 겪는다.
+//
+// 유튜브가 SABR 전용 스트리밍을 켜면서, 번들된 yt-dlp 2026.07.04로 뽑은 스트림 주소는
+// 앞쪽 1,000,000바이트까지만 서빙되고 그 뒤는 403으로 끊긴다(실측). K-Tube는 이 주소를
+// <video>/<audio>에 직접 물리는 구조라, 1MB를 넘는 영상은 재생이 시작조차 안 된다.
+// yt-dlp 쪽 수정(visionos 클라이언트 추가 #17184, 2026-07-09 머지)은 나이틀리에 이미 들어가
+// 있고 PO Token 없이 정상 동작하는 걸 확인했지만, 아직 정식 릴리스에는 안 실렸다.
+//
+// 그래서 앱 재빌드 없이 실행파일만 갈아끼우는 통로를 하나만 둔다. userData/bin/ 아래에
+// 실행 가능한 yt-dlp가 있으면 그걸 먼저 쓰고, 없으면 예전과 완전히 똑같이 번들 exe로 간다.
+// 정식 릴리스를 번들한 뒤 override 파일만 지우면 원복이고, 이 블록을 통째로 지워도 아래
+// 원본 함수 본문은 손댄 곳이 없다.
+//
+// override가 깨진 파일이어도 앱이 죽지 않도록 `--version`으로 한 번 확인하고, 실패하면
+// 조용히 번들 exe로 되돌아간다. 판정은 프로세스 수명 동안 캐시하므로 파일을 넣거나 뺀
+// 뒤에는 앱을 한 번 재시작해야 반영된다. 타임아웃 15초는 yt-dlp 공식 단독 실행파일이
+// PyInstaller onefile이라 첫 응답이 느린 것(맥 실측 8.5초)을 감안한 값이다.
+let _ytDlpOverride;  // undefined = 아직 안 봄, null = 없음(또는 못 씀)
+function getYtDlpOverridePath() {
+  if (_ytDlpOverride !== undefined) return _ytDlpOverride;
+  _ytDlpOverride = null;
+  try {
+    const p = path.join(app.getPath('userData'), 'bin',
+      process.platform === 'win32' ? 'yt-dlp.exe' : 'yt-dlp');
+    fs.accessSync(p, fs.constants.X_OK);
+    execFileSync(p, ['--version'], { timeout: 15000, stdio: 'ignore' });
+    _ytDlpOverride = p;
+  } catch { _ytDlpOverride = null; }
+  return _ytDlpOverride;
+}
+
 function getYtDlpPath() {
+  const override = getYtDlpOverridePath();
+  if (override) return override;
   if (app.isPackaged) {
     return path.join(process.resourcesPath, 'bin', 'yt-dlp.exe');
   }
@@ -196,12 +232,18 @@ function createWindow() {
   setupAutoUpdater();
 }
 
+// 프로그램 정보 창 폭 = 카드 300px + about.html body 좌우 padding 28px*2.
+// about.html의 body{padding}을 바꾸면 이 값도 같이 바꿔야 한다.
+const ABOUT_W = 356;
 let aboutWin = null;
 function openAboutWindow() {
   if (aboutWin && !aboutWin.isDestroyed()) { aboutWin.focus(); return; }
   aboutWin = new BrowserWindow({
-    width: 320, height: 340,
-    frame: false, resizable: false,
+    // 카드 300px + about.html의 body padding(좌우 28px) = 356.
+    // 창이 카드보다 그림자 여백만큼 크지 않으면 그림자가 창 경계에서 직선으로 잘려
+    // 카드 모서리가 각져 보인다(2026-08-25 확정). 높이는 로드 직후 about-resize가 실측 보정.
+    width: ABOUT_W, height: 525,
+    frame: false, resizable: false, transparent: true,
     alwaysOnTop: true, skipTaskbar: true,
     webPreferences: { contextIsolation: true, nodeIntegration: false, preload: path.join(__dirname, 'renderer', 'about-preload.js') }
   });
@@ -271,7 +313,7 @@ ipcMain.handle('check-for-updates', () => {
   return 'checking';
 });
 ipcMain.on('about-resize', (_, h) => {
-  if (aboutWin && !aboutWin.isDestroyed()) aboutWin.setContentSize(320, Math.round(h));
+  if (aboutWin && !aboutWin.isDestroyed()) aboutWin.setContentSize(ABOUT_W, Math.round(h));
 });
 ipcMain.handle('get-config', () => loadConfig());
 ipcMain.handle('save-config', (_, cfg) => {
