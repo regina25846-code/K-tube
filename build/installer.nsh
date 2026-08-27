@@ -60,6 +60,9 @@
   ; 삭제 안 함 처리, 형이 Windows 설정에서 직접 "제거"할 때만 진짜로 물어봄(K-Music과 동일 원리)
   IfSilent keepdata
     MessageBox MB_YESNO|MB_ICONQUESTION|MB_DEFBUTTON2 "애플리케이션 데이터(설정, API 키, 관심 주제 등)도 함께 삭제하시겠습니까?" IDNO keepdata
+    ; 2026-08-27 userData 폴더명 kris-tube → K-Tube 개명(구 폴더는 마이그레이션 후에도 보존됨) —
+    ; "데이터도 삭제"를 선택하면 신/구 폴더 둘 다 지워야 새 폴더가 살아남는 사고가 안 난다.
     RMDir /r "$APPDATA\kris-tube"
+    RMDir /r "$APPDATA\K-Tube"
   keepdata:
 !macroend

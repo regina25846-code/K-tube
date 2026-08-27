@@ -1209,12 +1209,93 @@ function startYTPlayer(videoId, embeddable) {
   });
 }
 
+// ── 우회재생 실패 안내창 (2026-08-27 추가) ─────────────────────────────────
+// 예전엔 yt-dlp 호출 자체가 실패했을 때만 "이 영상은 재생할 수 없어요." 한 줄을 띄웠고,
+// 주소는 잘 받아왔는데 <video>가 그 주소를 못 트는 경우(만료된 URL, 재생 못 하는 코덱 등)는
+// 아무 안내 없이 검은 화면에서 멈춰 있었다. video/audio의 error 이벤트를 받아서 원인별로
+// 다른 안내를 띄운다.
+//
+// 자동 재시도는 하지 않는다 — 실패 원인이 그대로면 무한 반복이 되고, 그동안 yt-dlp 호출이
+// 계속 나가면서 유튜브 쪽에서 차단당할 수 있다. 형이 [다시 시도]를 눌렀을 때만 다시 부른다.
+// 우회재생 시도마다 1씩 오르는 번호. 영상을 바꾸거나 [다시 시도]를 누르면 이전 시도의
+// <video>/<audio>는 src가 지워지면서 error 이벤트를 한 번 뱉는데(정상적인 뒷정리 과정),
+// 그걸 진짜 재생 실패로 오해해서 안내창을 띄우면 안 되기 때문에 번호로 구분한다.
+let ktDirectGen = 0;
+
+const KT_ERR_MSG = {
+  // <video>/<audio>가 주소를 받고도 재생에 실패 (만료된 URL, 네트워크 끊김, 코덱 문제 등)
+  load: '영상을 불러오지 못했어요.<br>잠시 뒤 다시 시도해 주세요.',
+  // 진행형 포맷이 하나도 없음 = HLS로만 서빙되는 영상(주로 실시간 방송)
+  hls: '이 영상은 실시간 방송이라<br>K-Tube 안에서는 재생할 수 없어요.',
+  // yt-dlp 호출 자체가 실패 (삭제/비공개/연령제한 등) — 예전부터 쓰던 문구 그대로 유지
+  ipc: '이 영상은 재생할 수 없어요.',
+};
+
+function ktShowPlaybackError(videoId, kind, info) {
+  const container = document.getElementById('ytPlayerContainer');
+  if (!container) return;
+  // 그 사이 형이 다른 영상으로 넘어갔으면 엉뚱한 화면을 덮어쓰지 않는다
+  if (ytCurrentVideoId !== videoId) return;
+
+  const detail = info || {};
+  // 콘솔 + 파일 양쪽에 남긴다. videoId와 기술적 상태값만 — 제목/검색어는 넣지 않는다.
+  console.warn('[K-Tube] 우회재생 실패', {
+    videoId, kind,
+    mediaErrorCode: detail.code, networkState: detail.networkState,
+    readyState: detail.readyState, quality: detail.quality,
+    qualityCount: detail.qualityCount, element: detail.element,
+    detail: detail.detail,
+  });
+  window.api?.logPlaybackError?.({ videoId, kind, ...detail });
+
+  // 남아있던 미디어/컨트롤 정리 — 안내창 뒤에서 소리만 계속 나는 걸 막는다
+  killAllMediaInContainer();
+
+  const showRetry = kind !== 'hls';
+  const showOpen = kind !== 'ipc';
+
+  const box = document.createElement('div');
+  box.className = 'kt-error-box';
+  box.style.cssText = 'display:flex;flex-direction:column;align-items:center;justify-content:center;'
+    + 'gap:16px;width:100%;height:100%;color:var(--text3,#888);font-size:14px;'
+    + 'text-align:center;padding:20px;line-height:1.6;';
+  const msg = document.createElement('div');
+  msg.innerHTML = KT_ERR_MSG[kind] || KT_ERR_MSG.load;
+  box.appendChild(msg);
+
+  const row = document.createElement('div');
+  row.style.cssText = 'display:flex;gap:8px;';
+  if (showRetry) {
+    const retry = document.createElement('button');
+    retry.className = 'btn btn-primary';
+    retry.textContent = '다시 시도';
+    // 캐시를 쓰지 않고 getDirectStream부터 통째로 다시 — 만료된 URL이 원인일 때
+    // 같은 주소를 재사용하면 똑같이 실패하기 때문
+    retry.onclick = () => startDirectStreamPlayer(videoId);
+    row.appendChild(retry);
+  }
+  if (showOpen) {
+    const open = document.createElement('button');
+    open.className = 'btn btn-secondary';
+    open.innerHTML = ICON_EXT + ' YouTube에서 열기';
+    // <a target="_blank">가 아니라 전용 IPC — main.js의 setWindowOpenHandler가
+    // 유튜브 주소를 가로채서 K-Tube 안에서 다시 재생시켜 버리기 때문(무한루프 방지)
+    open.onclick = () => window.api?.openExternalYouTube?.(videoId);
+    row.appendChild(open);
+  }
+  if (row.children.length) box.appendChild(row);
+
+  container.innerHTML = '';
+  container.appendChild(box);
+}
+
 // 임베드 차단 영상용 우회 재생 — yt-dlp로 원본 video/audio 스트림 주소를 직접 받아서
 // <video>+<audio> 태그로 재생(K-Music이 노래 재생할 때 쓰는 방식과 동일한 원리, 2026-07-20)
 // 브라우저 기본 video 컨트롤은 실제 소리가 나오는 audio 태그를 전혀 모르기 때문에
 // 뮤트/볼륨이 안 먹는 것처럼 보이는 문제가 있어서 커스텀 컨트롤로 교체, 화질도 yt-dlp가
 // 뽑아준 전체 목록 중 형이 직접 고를 수 있게 함(2026-07-21, 형 피드백)
 async function startDirectStreamPlayer(videoId) {
+  const gen = ++ktDirectGen; // 아래 error 핸들러가 "지금 시도"인지 판별하는 데 씀
   killAllMediaInContainer();
   const saved = parseInt(localStorage.getItem('ktube_pos_' + videoId) || '0');
   const container = document.getElementById('ytPlayerContainer');
@@ -1228,8 +1309,16 @@ async function startDirectStreamPlayer(videoId) {
 
   const res = await window.api?.getDirectStream?.(videoId);
   if (ytCurrentVideoId !== videoId) return; // 그 사이 다른 영상으로 넘어갔으면 중단
-  if (!res || !res.ok || !res.qualities || !res.qualities.length) {
-    container.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;color:var(--text3,#888);font-size:14px;text-align:center;padding:20px;">이 영상은 재생할 수 없어요.</div>';
+  if (!res || !res.ok) {
+    // yt-dlp 호출 자체가 실패 — 삭제/비공개/연령제한 등
+    ktShowPlaybackError(videoId, 'ipc', { detail: res?.error });
+    return;
+  }
+  if (!res.qualities || !res.qualities.length) {
+    // 주소는 받았는데 <video>로 틀 수 있는 진행형 포맷이 하나도 없음.
+    // 실시간 방송이 대표적인 경우 — main.js가 hlsOnly로 알려준다.
+    ktShowPlaybackError(videoId, res.hlsOnly || res.isLive ? 'hls' : 'ipc',
+      { qualityCount: 0, detail: `hlsOnly=${!!res.hlsOnly} isLive=${!!res.isLive}` });
     return;
   }
 
@@ -1261,6 +1350,26 @@ async function startDirectStreamPlayer(videoId) {
   container.innerHTML = '';
   container.appendChild(video);
   if (audio) container.appendChild(audio);
+
+  // ── 재생 실패 감지 (2026-08-27 추가) ──
+  // 주소는 정상적으로 받아왔는데 <video>/<audio>가 그 주소를 못 트는 경우.
+  // 대표적으로 스트림 주소가 만료됐거나(유튜브 주소는 몇 시간 지나면 죽는다) 네트워크가
+  // 끊긴 경우 — 예전엔 이때 아무 안내도 없이 검은 화면에서 멈춰 있었다.
+  const onMediaError = (el, elName) => (e) => {
+    if (gen !== ktDirectGen) return;   // 이미 다른 영상/다시 시도로 넘어간 뒤의 뒷정리 이벤트
+    if (!el.getAttribute('src')) return; // src를 비우는 정리 과정에서 나는 error는 무시
+    ktShowPlaybackError(videoId, 'load', {
+      element: elName,
+      code: el.error?.code,
+      networkState: el.networkState,
+      readyState: el.readyState,
+      quality: curQuality?.height,
+      qualityCount: res.qualities.length,
+      detail: el.error?.message,
+    });
+  };
+  video.addEventListener('error', onMediaError(video, 'video'));
+  if (audio) audio.addEventListener('error', onMediaError(audio, 'audio'));
 
   // ── 커스텀 컨트롤 바 (유튜브 자체 플레이어 아이콘/배치 최대한 그대로, 2026-07-21) ──
   // 아이콘 상수는 전역으로 이동함(createIframeCustomControls와 공유, 2026-08-06) —

@@ -8,20 +8,35 @@ const https = require('https');
 
 // yt-dlp 바이너리 경로 — K-Music과 동일한 탐색 패턴(2026-07-20)
 //
+// ── 번들 바이너리 버전 기록 (2026-08-27 갱신) ───────────────────────────────
+// bin/yt-dlp.exe 는 .gitignore 대상이라 git diff/로그에 안 잡힌다. "지금 뭐가 깔려있는지"를
+// 나중에 추적할 수 있도록 여기에만 명시적으로 남긴다. 바꿀 때마다 아래 두 줄도 같이 고칠 것.
+//
+//   버전   : yt-dlp 2026.08.19 (공식 stable, yt-dlp/yt-dlp 릴리스)
+//   sha256 : 66674953fe251b89f4d08c5f0e35e0728679bd67ab3d7d05c0562af101dd3e7a
+//
+//   (이전: 2026.07.04 / 52fe3c26dcf71fbdc85b528589020bb0b8e383155cfa81b64dd447bbe35e24b8)
+//
+// 교체 이유 — 유튜브가 SABR 전용 스트리밍을 켜면서, 2026.07.04로 뽑은 스트림 주소는 앞쪽
+// 1,000,000바이트까지만 서빙되고 그 뒤는 403으로 끊겼다(실측). K-Tube는 이 주소를
+// <video>/<audio>에 직접 물리는 구조라 1MB를 넘는 영상은 재생이 시작조차 안 됐다.
+// 해당 수정(visionos 클라이언트 추가 #17184, 2026-07-09 머지)이 2026.08.19 정식 릴리스에
+// 실려서 나이틀리 대신 공식 stable을 번들한다. 교체 후 Range 2000000- 요청이 206으로
+// 정상 응답하는 것까지 확인함(2026-08-27).
+//
+// ⚠️ 다만 바이너리 교체만으로는 재생이 안 된다 — 아래 getDirectStreamUrls의 진행형 포맷
+// 화이트리스트 필터와 반드시 한 세트다. 자세한 건 그쪽 주석 참고.
+//
 // ── 오버라이드 통로(2026-08-18 신설, 임시 성격) ──────────────────────────────
-// K-Music main.js에 넣은 것과 글자 그대로 같은 구조다. 두 앱이 같은 yt-dlp.exe를 번들하고
-// 있어서(md5 동일) 같은 사고를 같이 겪는다.
+// K-Music main.js에 넣은 것과 글자 그대로 같은 구조다.
 //
-// 유튜브가 SABR 전용 스트리밍을 켜면서, 번들된 yt-dlp 2026.07.04로 뽑은 스트림 주소는
-// 앞쪽 1,000,000바이트까지만 서빙되고 그 뒤는 403으로 끊긴다(실측). K-Tube는 이 주소를
-// <video>/<audio>에 직접 물리는 구조라, 1MB를 넘는 영상은 재생이 시작조차 안 된다.
-// yt-dlp 쪽 수정(visionos 클라이언트 추가 #17184, 2026-07-09 머지)은 나이틀리에 이미 들어가
-// 있고 PO Token 없이 정상 동작하는 걸 확인했지만, 아직 정식 릴리스에는 안 실렸다.
-//
-// 그래서 앱 재빌드 없이 실행파일만 갈아끼우는 통로를 하나만 둔다. userData/bin/ 아래에
+// 앱 재빌드 없이 실행파일만 갈아끼우는 통로를 하나만 둔다. userData/bin/ 아래에
 // 실행 가능한 yt-dlp가 있으면 그걸 먼저 쓰고, 없으면 예전과 완전히 똑같이 번들 exe로 간다.
-// 정식 릴리스를 번들한 뒤 override 파일만 지우면 원복이고, 이 블록을 통째로 지워도 아래
+// override 파일만 지우면 번들(위 기록된 버전)로 원복이고, 이 블록을 통째로 지워도 아래
 // 원본 함수 본문은 손댄 곳이 없다.
+//
+// ⚠️ override가 걸려 있으면 위 "번들 바이너리 버전 기록"과 실제로 도는 버전이 다를 수 있다.
+// 우회재생이 이상하면 userData/bin/ 부터 확인할 것.
 //
 // override가 깨진 파일이어도 앱이 죽지 않도록 `--version`으로 한 번 확인하고, 실패하면
 // 조용히 번들 exe로 되돌아간다. 판정은 프로세스 수명 동안 캐시하므로 파일을 넣거나 뺀
@@ -74,14 +89,44 @@ function ytdlp(args) {
 // --dump-json 결과의 각 포맷 항목에 이미 서명 해제된 url이 들어있어서 -f 셀렉터로 한번 더
 // 호출할 필요 없음 — 화질 목록 전체 + 각 화질별 url을 한번에 뽑아서 프론트에서 즉시 전환 가능하게 함
 // (720p 강제 캡 제거 — 형이 직접 화질 선택하고 싶다고 해서 지원 화질 전부 넘김, 2026-07-21)
+//
+// ── 진행형(progressive) 포맷 화이트리스트 (2026-08-27 추가) ──────────────────
+// <video>/<audio> 태그는 "바이트 범위를 그대로 받아서 디코딩하는" 단일 파일 URL만 재생할 수
+// 있다. HLS(.m3u8 재생목록)나 DASH 매니페스트는 브라우저가 직접 못 푼다 — 크롬은 hls.js
+// 같은 자바스크립트 라이브러리 없이는 HLS를 재생하지 못하기 때문이다.
+//
+// 그런데 yt-dlp가 돌려주는 formats 배열엔 진행형(https 단일 파일)과 HLS/DASH가 섞여 있고,
+// 화질(height)이 같은 항목이 양쪽에 다 있다. 예전 코드는 protocol을 아예 안 보고 tbr(비트레이트)만
+// 비교해서 골랐는데, HLS 쪽 tbr이 대체로 더 높게 잡히는 바람에 **전 화질 100%가 m3u8로
+// 선택**됐다(2026-08-27 실측: a3yHob16vP8은 6/6개, dQw4w9WgXcQ는 8/8개 전부 m3u8).
+// 그 URL을 <video>에 물리니 당연히 재생이 안 됐다.
+//
+// 그래서 "빼고 싶은 걸 지우는" 블랙리스트가 아니라 "쓸 수 있는 것만 통과시키는" 화이트리스트로
+// 판정한다. 유튜브가 나중에 http_dash_segments 같은 새 프로토콜을 추가해도 자동으로 걸러진다.
+// protocol 문자열만 믿지 않고 URL 모양(.m3u8 / /manifest/)까지 같이 보는 건, 같은 https
+// 프로토콜로 표시되면서 실제 내용은 매니페스트인 항목을 방어하기 위해서다.
+//
+// ⚠️ canPlayType() 기반 판정은 쓰지 않는다 — 크롬이 HLS MIME 타입에 대해 "maybe"를 돌려주는
+// 게 실측으로 확인됐다(실제론 재생 못 하면서). 브라우저 자기 신고를 믿으면 안 되는 자리다.
+function isProgressiveFormat(f) {
+  if (!f || !f.url) return false;
+  if (f.protocol !== 'https' && f.protocol !== 'http') return false;
+  if (f.url.includes('.m3u8')) return false;
+  if (f.url.includes('/manifest/')) return false;
+  return true;
+}
+
 async function getDirectStreamUrls(videoId) {
   const ytUrl = `https://www.youtube.com/watch?v=${videoId}`;
   const json = await ytdlp(['--no-playlist', '--dump-json', '--no-warnings', ytUrl]);
   const info = JSON.parse(json);
 
+  const allFormats = info.formats || [];
+  const progressive = allFormats.filter(isProgressiveFormat);
+
   const heights = {};
-  for (const f of info.formats || []) {
-    if (f.vcodec && f.vcodec !== 'none' && (!f.acodec || f.acodec === 'none') && f.height && f.url) {
+  for (const f of progressive) {
+    if (f.vcodec && f.vcodec !== 'none' && (!f.acodec || f.acodec === 'none') && f.height) {
       const isAvc = f.vcodec.startsWith('avc1');
       const cur = heights[f.height];
       if (!cur || (isAvc && !cur.isAvc) || (isAvc === cur.isAvc && (f.tbr || 0) > (cur.tbr || 0))) {
@@ -94,13 +139,24 @@ async function getDirectStreamUrls(videoId) {
     .map(q => ({ height: q.height, url: q.url }));
 
   let bestAudio = null;
-  for (const f of info.formats || []) {
-    if (f.acodec && f.acodec !== 'none' && (!f.vcodec || f.vcodec === 'none') && f.url) {
+  for (const f of progressive) {
+    if (f.acodec && f.acodec !== 'none' && (!f.vcodec || f.vcodec === 'none')) {
       if (!bestAudio || (f.abr || 0) > (bestAudio.abr || 0)) bestAudio = f;
     }
   }
 
-  return { qualities, audioUrl: bestAudio ? bestAudio.url : null, duration: info.duration };
+  // 진행형이 하나도 없다 = 라이브 방송처럼 HLS로만 서빙되는 영상. 렌더러가 "재생 실패"로
+  // 뭉뚱그리지 않고 "실시간 방송이라 재생 불가"라고 정확히 안내할 수 있게 사유를 같이 넘긴다.
+  // (isLive는 참고용 — 라이브가 아닌데 HLS만 있는 경우도 같은 분기로 보낸다.)
+  const hlsOnly = qualities.length === 0 && allFormats.length > 0;
+
+  return {
+    qualities,
+    audioUrl: bestAudio ? bestAudio.url : null,
+    duration: info.duration,
+    hlsOnly,
+    isLive: !!(info.is_live || info.live_status === 'is_live'),
+  };
 }
 
 const CONFIG_PATH = path.join(app.getPath('userData'), 'ktube_config.json');
@@ -366,6 +422,128 @@ ipcMain.handle('get-direct-stream', async (_, videoId) => {
   }
 });
 
+// 우회재생이 실패했을 때 렌더러가 부르는 두 통로(2026-08-27).
+//
+// ① 진짜로 브라우저에서 열기 — 렌더러에서 <a target="_blank">로 유튜브 주소를 열면
+// setWindowOpenHandler가 가로채서 "K-Tube 안에서 재생"으로 되돌려버린다. 재생이 안 돼서
+// 띄운 안내창의 [YouTube에서 열기]가 그 경로를 타면 같은 실패로 되돌아오는 무한루프가 되므로,
+// 핸들러를 우회해서 진짜 기본 브라우저로 넘기는 전용 통로가 필요하다.
+// 렌더러에 임의 URL 열기 권한을 주지 않도록 유튜브 영상 주소만 통과시킨다.
+ipcMain.handle('open-external-youtube', (_, videoId) => {
+  if (typeof videoId !== 'string' || !/^[a-zA-Z0-9_-]{11}$/.test(videoId)) return false;
+  shell.openExternal(`https://www.youtube.com/watch?v=${videoId}`);
+  return true;
+});
+
+// ② 실패 사유 기록 — updater-error.log와 같은 방식으로 userData 아래에 남긴다.
+// 형 PC에서 재현된 실패를 나중에 확인할 수 있어야 해서 콘솔 말고 파일로도 남김.
+// ⚠️ videoId와 기술적 상태값만 기록한다(제목/검색어/계정 등 개인정보 금지).
+ipcMain.handle('log-playback-error', (_, payload) => {
+  try {
+    const p = payload || {};
+    const line = [
+      `videoId=${String(p.videoId || '').slice(0, 11)}`,
+      `kind=${String(p.kind || '').slice(0, 24)}`,
+      `mediaErrorCode=${p.code == null ? '-' : p.code}`,
+      `networkState=${p.networkState == null ? '-' : p.networkState}`,
+      `readyState=${p.readyState == null ? '-' : p.readyState}`,
+      `quality=${p.quality == null ? '-' : p.quality}`,
+      `qualityCount=${p.qualityCount == null ? '-' : p.qualityCount}`,
+      `element=${String(p.element || '-').slice(0, 8)}`,
+      `detail=${String(p.detail || '').replace(/[\r\n]+/g, ' ').slice(0, 200)}`,
+    ].join(' ');
+    fs.appendFileSync(
+      path.join(app.getPath('userData'), 'playback-error.log'),
+      `[${new Date().toISOString()}] ${line}\n`
+    );
+  } catch (e) {}
+  return true;
+});
+
+// ── userData 이사 (구 kris-tube → 신 K-Tube, 2026-08-27) ──────────────────
+// package.json에 top-level productName: "K-Tube"를 추가하면서 Electron이 계산하는
+// userData 경로도 같이 바뀐다(app.getName()이 곧 폴더 이름 — K-Drawlog에서 실측 확인된
+// 패턴, `kris_draw/app/main.js`의 migrateLegacyUserData와 같은 구조). 그냥 두면 형이
+// 이미 넣어둔 API 키/관심주제/yt-dlp override/로그인 쿠키가 구 폴더에 남아 "설정이
+// 사라진 것처럼" 보인다.
+//
+// ⚠ 옮기지 않고 '복사'한다(rename 금지) — 실패해도 구 폴더가 그대로 남아 있어야
+//   되돌릴 수 있다. 새 폴더에 이미 같은 이름의 파일이 있으면 절대 덮어쓰지 않고
+//   skip한다(새 폴더 쪽이 최신이라는 뜻, 파일 단위 멱등 — 재기동해도 중복복사 없음).
+// ⚠ 캐시류(Cache/Code Cache/GPUCache/Dawn*Cache/blob_storage/Shared Dictionary/
+//   Trust Tokens/Singleton*/DevToolsActivePort)는 아래 화이트리스트에 없으므로
+//   자동 제외된다 — 통째로 복사하면 첫 실행이 오래 걸릴 수 있다(K-Music 실측 Cache 88MB).
+const LEGACY_USERDATA_DIR = 'kris-tube';
+// userData 루트 바로 아래의 단일 파일들
+const MIGRATE_FILES = ['ktube_config.json', 'Cookies', 'Preferences', 'updater-error.log', 'playback-error.log'];
+// userData 루트 아래의 하위 경로에 있는 단일 파일(중첩 폴더는 필요한 파일 자리까지만 만든다)
+const MIGRATE_NESTED_FILES = [['bin', 'yt-dlp.exe']];
+// 재귀 복사가 필요한 폴더 전체(내부 파일 단위로 skip 판정)
+const MIGRATE_DIRS = ['Local Storage'];
+
+// 반환값 = 실제로 새로 복사한 파일 개수(재기동 시 "복사함" 로그가 매번 찍히는 걸 막기 위함 — 이미
+// 다 있으면 0을 돌려주고 호출부에서 로그를 생략한다)
+function copyDirRecursiveSkipExisting(srcDir, dstDir) {
+  fs.mkdirSync(dstDir, { recursive: true });
+  let copied = 0;
+  for (const entry of fs.readdirSync(srcDir, { withFileTypes: true })) {
+    const src = path.join(srcDir, entry.name);
+    const dst = path.join(dstDir, entry.name);
+    if (entry.isDirectory()) {
+      copied += copyDirRecursiveSkipExisting(src, dst);
+    } else if (entry.isFile()) {
+      if (fs.existsSync(dst)) continue; // 멱등 — 새 쪽에 이미 있으면 안 건드림
+      fs.copyFileSync(src, dst);
+      copied++;
+    }
+  }
+  return copied;
+}
+
+function migrateLegacyUserData() {
+  try {
+    const target = app.getPath('userData');
+    const parent = path.dirname(target);
+    const legacy = path.join(parent, LEGACY_USERDATA_DIR);
+    if (legacy === target || !fs.existsSync(legacy)) return; // 구 폴더 자체가 없으면 할 일 없음
+    fs.mkdirSync(target, { recursive: true });
+
+    for (const f of MIGRATE_FILES) {
+      const src = path.join(legacy, f);
+      const dst = path.join(target, f);
+      if (!fs.existsSync(src) || fs.existsSync(dst)) continue;
+      try {
+        fs.copyFileSync(src, dst);
+        console.log('[ktube] 이전 설정 폴더에서 복사:', f);
+      } catch (e) { console.error('[ktube] 파일 복사 실패(무시):', f, e.message); }
+    }
+
+    for (const nested of MIGRATE_NESTED_FILES) {
+      const src = path.join(legacy, ...nested);
+      const dst = path.join(target, ...nested);
+      if (!fs.existsSync(src) || fs.existsSync(dst)) continue;
+      try {
+        fs.mkdirSync(path.dirname(dst), { recursive: true });
+        fs.copyFileSync(src, dst);
+        console.log('[ktube] 이전 설정 폴더에서 복사:', nested.join('/'));
+      } catch (e) { console.error('[ktube] 파일 복사 실패(무시):', nested.join('/'), e.message); }
+    }
+
+    for (const d of MIGRATE_DIRS) {
+      const src = path.join(legacy, d);
+      const dst = path.join(target, d);
+      if (!fs.existsSync(src)) continue;
+      try {
+        const n = copyDirRecursiveSkipExisting(src, dst);
+        if (n > 0) console.log('[ktube] 이전 설정 폴더에서 복사:', d + '/', `(${n}개 파일)`);
+      } catch (e) { console.error('[ktube] 폴더 복사 실패(무시):', d, e.message); }
+    }
+  } catch (e) {
+    // 실패해도 앱은 그냥 기본값으로 시작한다 — 구 폴더는 손대지 않았으므로 복구 가능.
+    console.error('[ktube] userData 이사 실패(무시):', e.message);
+  }
+}
+
 // ── App lifecycle ──
 const gotLock = app.requestSingleInstanceLock();
 if (!gotLock) {
@@ -379,6 +557,7 @@ if (!gotLock) {
     }
   });
   app.whenReady().then(() => {
+    migrateLegacyUserData();   // ★ 어떤 설정도 읽기 전에 먼저 — loadConfig()는 createWindow 안에서 처음 불린다
     createWindow();
     setupTray();
   });
