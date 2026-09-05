@@ -719,7 +719,7 @@ td.r { text-align: right; }
         <label class="tog"><input type="checkbox" id="cfgAutoAdvance"><span class="track"></span><span class="knob"></span></label>
       </div>
       <div class="srow">
-        <div class="sl"><b>창 항상 위</b><i>다른 프로그램 위에 K-Tube를 고정합니다</i></div>
+        <div class="sl"><b>창 항상 위</b><i>다른 프로그램 위에 K-Tube를 고정합니다. 영상을 보면서 다른 창으로 일할 때 켭니다.</i></div>
         <label class="tog"><input type="checkbox" id="cfgAlwaysOnTop"><span class="track"></span><span class="knob"></span></label>
       </div>
       <div class="srow">
@@ -840,7 +840,7 @@ td.r { text-align: right; }
   <div class="table-panel" id="tablePanel">
     <div class="center-msg">
       <div style="font-size:48px;opacity:.3"><svg width="48" height="48" viewBox="0 0 24 24" fill="currentColor"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg></div>
-      <div class="load-msg">설정에서 관심 주제를 입력하면 홈탭에서 바로 볼 수 있어요</div>
+      <div class="load-msg">설정에서 관심 주제를 입력하면 홈탭에서 바로 볼 수 있어요.</div>
     </div>
   </div>
   <div class="divider" id="divider"></div>
@@ -870,7 +870,7 @@ td.r { text-align: right; }
     <div class="fav-sidebar-tab" id="favTabChannels" onclick="switchFavTab('channels')"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" style="vertical-align:-2px;margin-right:6px"><path d="m12 3.6 2.6 5.5 5.9.8-4.3 4.2 1 6-5.2-2.9-5.2 2.9 1-6L3.5 9.9l5.9-.8z"/></svg>즐겨찾는 채널</div>
   </div>
   <div class="fav-content" id="favContent">
-    <div class="fav-empty">탭을 선택해주세요.</div>
+    <div class="fav-empty">탭을 선택해 주세요.</div>
   </div>
 </div>
 
@@ -1840,10 +1840,10 @@ function switchTab(tab, isInit) {
     else loadHome();
   } else if (tab === 'search') {
     if (searchResults.length) renderSearchGrid(getSortedSearchResults());
-    else showEmpty('검색어를 입력하세요');
+    else showEmpty('검색어를 입력해 주세요.');
   } else if (tab === 'playlist') {
     if (playlistResults.length) { currentResults = playlistResults; renderTable(currentResults); }
-    else showEmpty('즐겨찾기에서 재생목록을 선택하세요');
+    else showEmpty('즐겨찾기에서 재생목록을 선택해 주세요.');
   } else if (tab === 'fav') {
     loadFavoritesTab();
   }
@@ -1905,7 +1905,7 @@ let homeNoShorts = false;
 function renderTopicChips() {
   const topics = INTERESTS.split(',').map(s => s.trim()).filter(Boolean);
   const row = document.getElementById('topicChipsRow');
-  if (!topics.length) { row.innerHTML = '<span style="font-size:12px;color:var(--text3)">설정에서 관심 주제를 입력하세요</span>'; return; }
+  if (!topics.length) { row.innerHTML = '<span style="font-size:12px;color:var(--text3)">설정에서 관심 주제를 입력해 주세요.</span>'; return; }
   if (homeActiveTopic && !topics.includes(homeActiveTopic)) homeActiveTopic = null;
   row.innerHTML = topics.map(t =>
     `<button class="topic-chip${homeActiveTopic === t ? ' active' : ''}" onclick="selectTopic('${escHtml(t)}')">${escHtml(t)}</button>`
@@ -2066,9 +2066,9 @@ async function buildResults(items, videoMap, shortsMode) {
 
 // ── Home tab ──
 async function loadHome() {
-  if (!API_KEYS.length) { showEmpty('설정에서 API 키를 입력하세요'); return; }
+  if (!API_KEYS.length) { showEmpty('설정에서 API 키를 입력해 주세요.'); return; }
   const allTopics = INTERESTS.split(',').map(s=>s.trim()).filter(Boolean);
-  if (!allTopics.length) { showEmpty('설정에서 관심 주제를 입력하세요'); return; }
+  if (!allTopics.length) { showEmpty('설정에서 관심 주제를 입력해 주세요.'); return; }
   const query = homeActiveTopic || allTopics[Math.floor(Math.random()*allTopics.length)];
   showLoading(`"${query}" 불러오는 중...`);
   try {
@@ -2077,16 +2077,16 @@ async function loadHome() {
     // medium은 20분 넘는 롱폼 영상까지 같이 걸러내던 버그가 있었음(2026-08-06)
     const homeDurationParam = homeShortsMode === 'only' ? '&videoDuration=short' : '';
     const searchData = await apiFetch(`${BASE}/search?part=snippet&q=${encodeURIComponent(query)}&type=video&maxResults=20&order=date&relevanceLanguage=ko${regionParam}${homeDurationParam}`);
-    if (!searchData.items?.length) { showEmpty('결과 없음'); return; }
+    if (!searchData.items?.length) { showEmpty('결과가 없어요.'); return; }
     const videoIds = searchData.items.map(i => i.id.videoId);
     const channelIds = [...new Set(searchData.items.map(i => i.snippet.channelId))];
     const videoMap = await fetchVideos(videoIds, channelIds);
     let results = await buildResults(searchData.items, videoMap, homeShortsMode);
     homeResults = results;
     currentResults = homeResults;
-    if (!currentResults.length) { showEmpty('한국 영상 없음'); return; }
+    if (!currentResults.length) { showEmpty('한국 영상이 없어요.'); return; }
     renderTable(currentResults);
-  } catch(e) { showEmpty('오류: ' + e.message); }
+  } catch(e) { showEmpty('오류가 났어요: ' + e.message); }
 }
 
 // ── Search ──
@@ -2131,7 +2131,7 @@ async function doSearch() {
     // medium은 20분 넘는 롱폼 영상까지 같이 걸러내던 버그가 있었음(2026-08-06)
     const durationParam = shortsMode === 'only' ? '&videoDuration=short' : '';
     const searchData = await apiFetch(`${BASE}/search?part=snippet&q=${encodeURIComponent(q)}&type=video&maxResults=30&relevanceLanguage=ko&regionCode=KR${durationParam}`);
-    if (!searchData.items?.length) { showEmpty('검색 결과 없음'); return; }
+    if (!searchData.items?.length) { showEmpty('검색 결과가 없어요.'); return; }
     const videoIds = searchData.items.map(i => i.id.videoId);
     showLoading('영상 정보 가져오는 중...');
     const vData = await apiFetch(`${BASE}/videos?part=contentDetails,statistics&id=${videoIds.join(',')}`);
@@ -2144,7 +2144,7 @@ async function doSearch() {
     if (shortsMode !== 'off') showLoading('쇼츠 여부 확인 중...');
     searchResults = await filterByShortsMode(searchResults, shortsMode);
     renderSearchGrid(searchResults);
-  } catch(e) { showEmpty('오류: ' + e.message); }
+  } catch(e) { showEmpty('오류가 났어요: ' + e.message); }
   finally { btn.disabled = false; btn.textContent = '검색'; }
 }
 // 검색결과 한 줄의 액션 — 별(즐겨찾는 채널) + "+"(대기열 추가). 클릭이 줄 전체 재생으로
@@ -2528,7 +2528,7 @@ async function showChannelPlaylists(channelId, channelName) {
   document.getElementById('playlistModal').classList.add('open');
   try {
     const data = await apiFetch(`${BASE}/playlists?part=snippet,contentDetails&channelId=${channelId}&maxResults=25`);
-    if (!data.items?.length) { document.getElementById('playlistList').innerHTML = '<div style="color:var(--text3);text-align:center;padding:20px">재생목록 없음</div>'; return; }
+    if (!data.items?.length) { document.getElementById('playlistList').innerHTML = '<div style="color:var(--text3);text-align:center;padding:20px">재생목록이 없어요.</div>'; return; }
     const channelName = document.getElementById('playlistChannelName').textContent;
     document.getElementById('playlistList').innerHTML = data.items.map(p => {
       const isSaved = savedPlaylists.some(s => s.playlistId === p.id);
@@ -2563,7 +2563,7 @@ async function loadPlaylist(playlistId, playlistTitle) {
   try {
     const plData = await apiFetch(`${BASE}/playlistItems?part=contentDetails&playlistId=${playlistId}&maxResults=50`);
     const videoIds = plData.items?.map(i => i.contentDetails.videoId).filter(Boolean) || [];
-    if (!videoIds.length) { showEmpty('재생목록이 비어있어요'); return; }
+    if (!videoIds.length) { showEmpty('재생목록이 비어 있어요.'); return; }
     const vData = await apiFetch(`${BASE}/videos?part=statistics,snippet,contentDetails,status&id=${videoIds.join(',')}`);
     const channelIds = [...new Set(vData.items.map(v => v.snippet.channelId))];
     const uncached = channelIds.filter(id => !chCache[id]);
@@ -2584,7 +2584,7 @@ async function loadPlaylist(playlistId, playlistTitle) {
     panel.insertAdjacentHTML('afterbegin', `<div id="playlistCtrlBar" style="display:flex;gap:8px;padding:8px 12px;border-bottom:1px solid var(--border)"><button class="filter-chip" onclick="shufflePlaylist()">${ICON_SHUFFLE} 랜덤 재생</button><button class="filter-chip" id="playlistSortBtn" onclick="cyclePlaylistSort()">${ICON_SORT}목록순</button></div>`);
     updateQueueBadge();
     if (playlistQueue.length) selectRow(playlistQueue[0].videoId);
-  } catch(e) { showEmpty('오류: ' + e.message); }
+  } catch(e) { showEmpty('오류가 났어요: ' + e.message); }
 }
 
 // ── Queue ──

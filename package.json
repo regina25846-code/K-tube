@@ -5,9 +5,13 @@
   "description": "K-Tube — YouTube 알고리즘 영상 분석기",
   "author": "KrisB",
   "main": "main.js",
+  "//": "\u26a0 \ubc30\ud3ec\uc6a9 \ube4c\ub4dc\ub294 \ubc18\ub4dc\uc2dc build:protected \ub97c \uc4f4\ub2e4. build \ub294 \uc18c\uc2a4\ubcf4\ud638\uac00 \uc548 \ub41c \uc608\uc804 \ubc29\uc2dd\uc774\ub77c \uac1c\ubc1c \uc911 \ud655\uc778\uc6a9\uc73c\ub85c\ub9cc \uc4f4\ub2e4(PND-0113).",
   "scripts": {
     "start": "electron .",
-    "build": "electron-builder --win --x64 --publish never"
+    "build": "electron-builder --win --x64 --publish never",
+    "build:protected": "node build/protect.js --build",
+    "stage:protected": "node build/protect.js",
+    "verify:protected": "node build/verify_protected.js"
   },
   "build": {
     "appId": "com.kris.tube",
@@ -60,6 +64,8 @@
   "devDependencies": {
     "electron": "^31.7.7",
     "electron-builder": "^24.13.3",
+    "html-minifier-terser": "^7.2.0",
+    "terser": "^5.51.2",
     "ws": "^8.21.0"
   },
   "dependencies": {
