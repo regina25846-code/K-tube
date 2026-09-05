@@ -5,3 +5,18 @@ dist/
 *.exe
 bin/
 design_ref/
+
+# ── 앱 소스는 이 공개 저장소에 올리지 않는다 (2026-09-05) ──
+# 이 저장소가 하는 일은 두 가지뿐이다: 다운로드 페이지(docs/)를 서비스하고,
+# 릴리즈에 설치파일을 올려두는 것. 둘 다 소스가 없어도 된다.
+# 설치파일은 맥미니에서 만들고(npm run build) release_ktube.sh 가 올린다 —
+# 깃허브 자동빌드를 쓰지 않으므로 깃허브가 소스를 읽을 일이 애초에 없다.
+# 소스는 맥미니에만 둔다. 지우지 말 것 — 여기 적힌 건 "안 올린다"는 뜻이지
+# "필요 없다"는 뜻이 아니다.
+main.js
+preload.js
+package.json
+package-lock.json
+renderer/
+assets/
+build/
